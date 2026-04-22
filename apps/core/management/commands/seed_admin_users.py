@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.core.models import Partner
 
@@ -12,6 +12,14 @@ class Command(BaseCommand):
     help = "Create or update the two allowed Gummy Lover's admin users and partner records."
 
     def handle(self, *args, **options):
+        def password_from_env(env_name):
+            password = os.environ.get(env_name)
+            if password:
+                return password
+            if not settings.DEBUG:
+                raise CommandError(f"Falta configurar {env_name} para crear usuarios en producción.")
+            return "GummyLovers2026!"
+
         users = [
             {
                 "username": "efrain.leyva",
@@ -19,7 +27,7 @@ class Command(BaseCommand):
                 "first_name": "Efrain",
                 "last_name": "Leyva",
                 "partner_code": Partner.Code.A,
-                "password": os.environ.get("GUMMY_EFRAIN_PASSWORD", "GummyLovers2026!"),
+                "password": password_from_env("GUMMY_EFRAIN_PASSWORD"),
             },
             {
                 "username": "erika.mora",
@@ -27,7 +35,7 @@ class Command(BaseCommand):
                 "first_name": "Erika",
                 "last_name": "Mora",
                 "partner_code": Partner.Code.B,
-                "password": os.environ.get("GUMMY_ERIKA_PASSWORD", "GummyLovers2026!"),
+                "password": password_from_env("GUMMY_ERIKA_PASSWORD"),
             },
         ]
 
@@ -71,4 +79,3 @@ class Command(BaseCommand):
 
             status = "created" if created else "updated"
             self.stdout.write(self.style.SUCCESS(f"{item['username']} {status}"))
-
