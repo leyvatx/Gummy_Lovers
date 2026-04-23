@@ -4,23 +4,16 @@ import { Banknote, HandCoins, Menu, PackageCheck, RefreshCw, Scale, WalletCards 
 import { AdminProfilesCard } from '@/components/dashboard/admin-profiles-card'
 import { CustomerTable } from '@/components/dashboard/customer-table'
 import { MetricCard } from '@/components/dashboard/metric-card'
-import { AppSidebar, type AppSection } from '@/components/layout/app-sidebar'
-import { CatalogWorkspace } from '@/components/management/catalog-workspace'
 import { DirectSaleAction } from '@/components/forms/direct-sale-action'
 import { ExpenseAction } from '@/components/forms/expense-action'
 import { PaymentAction } from '@/components/forms/payment-action'
+import { AppSidebar, type AppSection } from '@/components/layout/app-sidebar'
+import { CatalogWorkspace } from '@/components/management/catalog-workspace'
 import { LoginScreen } from '@/components/login-screen'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
 import { UserMenu } from '@/components/user-menu'
 import {
   getAdminProfiles,
@@ -43,9 +36,12 @@ import {
   type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 const DASHBOARD_REFRESH_MS = 15_000
 const SESSION_KEEPALIVE_MS = 5 * 60_000
+const MOBILE_BREAKPOINT = '(max-width: 1400px)'
+const SIDEBAR_STORAGE_KEY = 'gummy-sidebar-expanded'
 
 const emptySnapshot: FinancialSnapshot = {
   cash_on_hand: '0.00',
@@ -57,41 +53,27 @@ const emptySnapshot: FinancialSnapshot = {
   partners: [],
 }
 
-const sectionMeta: Record<AppSection, { badge: string; title: string; description: string }> = {
+const sectionMeta: Record<AppSection, { title: string }> = {
   dashboard: {
-    badge: 'Operacion B2B',
     title: 'Dashboard financiero',
-    description: 'Inventario, cobranza y reparto de socios en una vista operativa.',
   },
   suppliers: {
-    badge: 'Tabla base',
     title: 'Proveedores',
-    description: 'Alta y consulta de proveedores para compras e inventario.',
   },
   products: {
-    badge: 'Tabla base',
     title: 'Productos',
-    description: 'Catalogo maestro con SKU, gramos por pieza y stock disponible.',
   },
   portions: {
-    badge: 'Tabla base',
     title: 'Porciones',
-    description: 'Tamano operativo por producto para ventas y conversion de inventario.',
   },
   customers: {
-    badge: 'Tabla base',
     title: 'Clientes',
-    description: 'Clientes mayoristas con contacto, credito y saldo.',
   },
   prices: {
-    badge: 'Tabla base',
     title: 'Precios',
-    description: 'Tarifa por cliente, producto y porcion.',
   },
   lots: {
-    badge: 'Tabla base',
     title: 'Lotes',
-    description: 'Entradas de inventario por lote con costo y stock remanente.',
   },
 }
 
@@ -102,6 +84,22 @@ function getInitialTheme(): 'light' | 'dark' {
   }
 
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function getInitialSidebarExpanded() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1'
+}
+
+function getInitialMobileState() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.matchMedia(MOBILE_BREAKPOINT).matches
 }
 
 function isAuthError(error: unknown) {
@@ -122,7 +120,9 @@ function sameUser(currentUser: AuthUser, nextUser: AuthUser) {
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
   const [currentSection, setCurrentSection] = useState<AppSection>('dashboard')
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(getInitialSidebarExpanded)
+  const [isMobile, setIsMobile] = useState(getInitialMobileState)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(hasStoredAuthToken)
   const [snapshot, setSnapshot] = useState<FinancialSnapshot>(emptySnapshot)
@@ -154,6 +154,54 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('gummy-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, isSidebarExpanded ? '1' : '0')
+  }, [isSidebarExpanded])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined
+    }
+
+    const mediaQuery = window.matchMedia(MOBILE_BREAKPOINT)
+
+    function handleChange(event: MediaQueryList | MediaQueryListEvent) {
+      const mobile = event.matches
+      setIsMobile(mobile)
+
+      if (!mobile) {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    handleChange(mediaQuery)
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobileSidebarOpen) {
+      return undefined
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMobileSidebarOpen])
 
   useEffect(() => {
     if (!hasStoredAuthToken()) {
@@ -379,7 +427,7 @@ function App() {
     return (
       <div className="grid min-h-svh place-items-center">
         <div className="rounded-3xl border bg-card/90 px-5 py-4 text-sm text-muted-foreground shadow-[var(--ui-shadow-soft)]">
-          Cargando sesion...
+          Cargando sesión...
         </div>
       </div>
     )
@@ -393,51 +441,65 @@ function App() {
 
   function handleSectionSelect(section: AppSection) {
     setCurrentSection(section)
-    setMobileSidebarOpen(false)
+    setIsMobileSidebarOpen(false)
   }
 
+  function handleToggleSidebar() {
+    if (isMobile) {
+      setIsMobileSidebarOpen((currentValue) => !currentValue)
+      return
+    }
+
+    setIsSidebarExpanded((currentValue) => !currentValue)
+  }
+
+  const layoutClassName = cn('layout', {
+    'sidebar-expanded': !isMobile && isSidebarExpanded,
+    'sidebar-collapsed': !isMobile && !isSidebarExpanded,
+    'sidebar-mobile': isMobile,
+    'sidebar-mobile-open': isMobile && isMobileSidebarOpen,
+  })
+
   return (
-    <div className="min-h-svh bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_34%),radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--ui-highlight)_10%,transparent),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.03),transparent_28%),var(--ui-background)] lg:h-svh lg:overflow-hidden">
-      <aside className="fixed inset-y-[12px] left-[12px] z-30 hidden w-[292px] lg:block">
-        <AppSidebar currentSection={currentSection} onSelect={handleSectionSelect} />
-      </aside>
+    <div className={layoutClassName}>
+      <AppSidebar
+        currentSection={currentSection}
+        isExpanded={isSidebarExpanded}
+        isMobile={isMobile}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onSelect={handleSectionSelect}
+        onToggle={handleToggleSidebar}
+      />
 
-      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent side="left" className="w-[320px] max-w-[88vw] border-r px-3 py-3">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Menu lateral</SheetTitle>
-            <SheetDescription>Acceso a dashboard y tablas base.</SheetDescription>
-          </SheetHeader>
-          <div className="h-full pt-1">
-            <AppSidebar currentSection={currentSection} onSelect={handleSectionSelect} />
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <div className="px-3 py-3 sm:px-4 lg:fixed lg:inset-y-[12px] lg:right-[12px] lg:left-[316px] lg:flex lg:min-h-0 lg:flex-col lg:overflow-auto lg:px-0 lg:py-0">
-        <div className="grid gap-4 md:gap-5">
-          <header className="relative min-w-0 self-start overflow-visible rounded-[28px] border border-[var(--ui-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ui-card)_96%,transparent),color-mix(in_srgb,var(--ui-highlight)_4%,var(--ui-card)))] px-3 py-3 shadow-[var(--ui-shadow-soft)] backdrop-blur-xl md:px-4">
+      <main className="main">
+        <div className="page-layout">
+          <header className="page-topbar relative min-w-0 self-start overflow-visible rounded-[28px] border border-[var(--ui-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ui-card)_96%,transparent),color-mix(in_srgb,var(--ui-highlight)_4%,var(--ui-card)))] px-3 py-3 shadow-[var(--ui-shadow-soft)] backdrop-blur-xl md:px-4">
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <div className="flex min-w-0 items-center gap-3">
-                <Button variant="outline" size="icon" className="shrink-0 lg:hidden" onClick={() => setMobileSidebarOpen(true)}>
-                  <Menu className="size-4" />
-                  <span className="sr-only">Abrir menu lateral</span>
-                </Button>
+                {isMobile ? (
+                  <Button variant="outline" size="icon" className="shrink-0 lg:hidden" onClick={() => setIsMobileSidebarOpen(true)}>
+                    <Menu className="size-4" />
+                    <span className="sr-only">Abrir menú lateral</span>
+                  </Button>
+                ) : null}
+
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="m-0 truncate text-[clamp(1.2rem,2.4vw,1.55rem)] font-semibold tracking-[-0.04em] text-foreground">
-                      {currentMeta.title}
-                    </h1>
-                    <Badge variant="outline">{currentMeta.badge}</Badge>
-                  </div>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{currentMeta.description}</p>
+                  <h1 className="m-0 truncate text-[clamp(1.2rem,2.4vw,1.55rem)] font-semibold tracking-[-0.04em] text-foreground">
+                    {currentMeta.title}
+                  </h1>
                 </div>
               </div>
 
-              <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
-                <DirectSaleAction user={user} products={products} onCreated={refreshData} />
-                <ExpenseAction user={user} onCreated={refreshData} />
-                <PaymentAction customers={customers} onCreated={refreshData} />
+              <div className="page-topbar-actions flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+                {currentSection === 'dashboard' ? (
+                  <>
+                    <DirectSaleAction user={user} products={products} onCreated={refreshData} />
+                    <ExpenseAction user={user} onCreated={refreshData} />
+                    <PaymentAction customers={customers} onCreated={refreshData} />
+                  </>
+                ) : null}
+                {lastUpdated ? <span className="hidden text-xs text-muted-foreground xl:inline">Actualizado {lastUpdated}</span> : null}
                 <ThemeToggle theme={theme} onToggle={toggleTheme} />
                 <Button variant="ghost" size="icon" onClick={() => void refreshData()} disabled={isLoading}>
                   <RefreshCw className={isLoading ? 'animate-spin' : ''} />
@@ -448,108 +510,97 @@ function App() {
             </div>
           </header>
 
-          {lastUpdated || error ? (
-            <div className="flex flex-wrap items-center gap-3 px-1">
-              {lastUpdated ? <span className="text-xs text-muted-foreground">Actualizado {lastUpdated}</span> : null}
-              {error ? (
-                <span className="rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive">
-                  {error}
-                </span>
-              ) : null}
+          {error ? (
+            <div className="rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm text-destructive">
+              {error}
             </div>
           ) : null}
 
-          {currentSection === 'dashboard' ? (
-            <>
-              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {metrics.map((metric) => (
-                  <MetricCard key={metric.title} {...metric} />
-                ))}
-              </section>
+          <div className="min-h-0 min-w-0 pb-2 md:pb-3">
+            {currentSection === 'dashboard' ? (
+              <div className="grid gap-5">
+                <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {metrics.map((metric) => (
+                    <MetricCard key={metric.title} {...metric} />
+                  ))}
+                </section>
 
-              <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
-                <CustomerTable customers={customers} />
+                <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
+                  <CustomerTable customers={customers} />
 
-                <aside className="grid content-start gap-5">
-                  <Card>
-                    <CardHeader className="border-b">
-                      <CardTitle>Socios</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 pt-4 sm:pt-5">
-                      {snapshot.partners.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin socios activos registrados.</p>
-                      ) : (
-                        snapshot.partners.map((partner) => (
-                          <div key={partner.partner_id} className="rounded-lg border p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="font-medium">{partner.name}</p>
-                                <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
+                  <aside className="grid content-start gap-5">
+                    <Card>
+                      <CardHeader className="border-b">
+                        <CardTitle>Socios</CardTitle>
+                      </CardHeader>
+                      <CardContent className="grid gap-4 pt-4 sm:pt-5">
+                        {snapshot.partners.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Sin socios activos registrados.</p>
+                        ) : (
+                          snapshot.partners.map((partner) => (
+                            <div key={partner.partner_id} className="rounded-lg border p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium">{partner.name}</p>
+                                  <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
+                                </div>
+                                <Badge variant="secondary">{formatMoney(partner.net_partner_balance)}</Badge>
                               </div>
-                              <Badge variant="secondary">{formatMoney(partner.net_partner_balance)}</Badge>
+                              <dl className="mt-4 grid gap-2 text-sm">
+                                <div className="flex justify-between gap-3">
+                                  <dt className="text-muted-foreground">Reembolso disponible</dt>
+                                  <dd className="font-medium tabular-nums">
+                                    {formatMoney(partner.reimbursements_available_to_payout)}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-3">
+                                  <dt className="text-muted-foreground">Utilidad disponible</dt>
+                                  <dd className="font-medium tabular-nums">
+                                    {formatMoney(partner.profit_available_to_payout)}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-3">
+                                  <dt className="text-muted-foreground">Gastos pendientes</dt>
+                                  <dd className="font-medium tabular-nums">
+                                    {formatMoney(partner.reimbursements_pending_to_allocate)}
+                                  </dd>
+                                </div>
+                              </dl>
                             </div>
-                            <dl className="mt-4 grid gap-2 text-sm">
-                              <div className="flex justify-between gap-3">
-                                <dt className="text-muted-foreground">Reembolso disponible</dt>
-                                <dd className="font-medium tabular-nums">
-                                  {formatMoney(partner.reimbursements_available_to_payout)}
-                                </dd>
-                              </div>
-                              <div className="flex justify-between gap-3">
-                                <dt className="text-muted-foreground">Utilidad disponible</dt>
-                                <dd className="font-medium tabular-nums">
-                                  {formatMoney(partner.profit_available_to_payout)}
-                                </dd>
-                              </div>
-                              <div className="flex justify-between gap-3">
-                                <dt className="text-muted-foreground">Gastos pendientes</dt>
-                                <dd className="font-medium tabular-nums">
-                                  {formatMoney(partner.reimbursements_pending_to_allocate)}
-                                </dd>
-                              </div>
-                            </dl>
+                          ))
+                        )}
+
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+                          <div className="flex items-center gap-2 font-medium">
+                            <PackageCheck className="size-4" />
+                            Reserva de inventario
                           </div>
-                        ))
-                      )}
-
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
-                        <div className="flex items-center gap-2 font-medium">
-                          <PackageCheck className="size-4" />
-                          Reserva de inventario
+                          <p className="mt-2 text-2xl font-semibold tabular-nums">
+                            {formatMoney(snapshot.inventory_reserve_allocated)}
+                          </p>
                         </div>
-                        <p className="mt-2 text-2xl font-semibold tabular-nums">
-                          {formatMoney(snapshot.inventory_reserve_allocated)}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
-                  <AdminProfilesCard admins={adminProfiles} />
-                </aside>
-              </section>
-            </>
-          ) : (
-            <CatalogWorkspace
-              section={currentSection}
-              user={user}
-              customers={customers}
-              customerPrices={customerPrices}
-              inventoryLots={inventoryLots}
-              products={products}
-              suppliers={suppliers}
-              onRefresh={refreshData}
-            />
-          )}
+                    <AdminProfilesCard admins={adminProfiles} />
+                  </aside>
+                </section>
+              </div>
+            ) : (
+              <CatalogWorkspace
+                section={currentSection}
+                user={user}
+                customers={customers}
+                customerPrices={customerPrices}
+                inventoryLots={inventoryLots}
+                products={products}
+                suppliers={suppliers}
+                onRefresh={refreshData}
+              />
+            )}
+          </div>
         </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card p-3 shadow-lg sm:hidden">
-        <div className="grid w-full grid-cols-3 gap-2">
-          <DirectSaleAction user={user} products={products} onCreated={refreshData} />
-          <ExpenseAction user={user} onCreated={refreshData} />
-          <PaymentAction customers={customers} onCreated={refreshData} />
-        </div>
-      </div>
+      </main>
     </div>
   )
 }

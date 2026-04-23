@@ -1,14 +1,18 @@
+import { useMemo, useState } from 'react'
 import {
   Boxes,
+  ChevronRight,
   LayoutDashboard,
   Package2,
+  Search,
   Tags,
   Truck,
   UserRoundPlus,
   Wallet2,
+  X,
 } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 export type AppSection =
@@ -29,7 +33,12 @@ type SidebarSection = {
 
 type AppSidebarProps = {
   currentSection: AppSection
+  isExpanded: boolean
+  isMobile: boolean
+  isMobileOpen: boolean
+  onCloseMobile: () => void
   onSelect: (section: AppSection) => void
+  onToggle: () => void
 }
 
 const sections: SidebarSection[] = [
@@ -48,13 +57,13 @@ const sections: SidebarSection[] = [
   {
     key: 'products',
     label: 'Productos',
-    helper: 'Catalogo maestro',
+    helper: 'Catálogo maestro',
     icon: Package2,
   },
   {
     key: 'portions',
     label: 'Porciones',
-    helper: 'Tamano por producto',
+    helper: 'Tamaño por producto',
     icon: Tags,
   },
   {
@@ -77,59 +86,107 @@ const sections: SidebarSection[] = [
   },
 ]
 
-function AppSidebar({ currentSection, onSelect }: AppSidebarProps) {
+function AppSidebar({
+  currentSection,
+  isExpanded,
+  isMobile,
+  isMobileOpen,
+  onCloseMobile,
+  onSelect,
+  onToggle,
+}: AppSidebarProps) {
+  const [search, setSearch] = useState('')
+
+  const filteredSections = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+    if (!normalizedSearch) {
+      return sections
+    }
+
+    return sections.filter((section) =>
+      `${section.label} ${section.helper}`.toLowerCase().includes(normalizedSearch),
+    )
+  }, [search])
+
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[30px] border border-[var(--ui-border)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ui-card)_94%,transparent),color-mix(in_srgb,var(--ui-highlight)_6%,var(--ui-card)))] shadow-[var(--ui-shadow-card)] backdrop-blur-xl">
-      <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_24%),radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--ui-highlight)_16%,transparent),transparent_34%)]" />
+    <>
+      {isMobile ? (
+        <button
+          className="sidebar-backdrop"
+          onClick={onCloseMobile}
+          type="button"
+          aria-label="Cerrar menú lateral"
+          tabIndex={isMobileOpen ? 0 : -1}
+        />
+      ) : null}
 
-      <div className="relative flex items-center gap-3 px-3 pb-2 pt-3">
-        <div className="grid size-[52px] shrink-0 place-items-center rounded-[18px] border border-[var(--ui-border)] bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--ui-highlight)_20%,rgba(255,255,255,0.14)),transparent_60%),var(--ui-card)] text-sm font-black text-foreground shadow-[var(--ui-shadow-soft)]">
-          GL
-        </div>
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Gummy Lover&apos;s</p>
-          <p className="truncate text-[0.95rem] font-semibold tracking-[-0.03em] text-foreground">Control Hub</p>
-        </div>
-      </div>
+      <aside className="sidebar" aria-hidden={isMobile ? !isMobileOpen : undefined}>
+        <div className="sidebar-surface">
+          <div className="sidebar-header">
+            <div className="sidebar-brand-link">
+              <span className="sidebar-brand-mark text-sm font-black text-foreground">GL</span>
+              <span className="sidebar-brand-copy">
+                <span className="sidebar-brand-eyebrow">Gummy Lover&apos;s</span>
+                <strong className="sidebar-brand-title">Control Hub</strong>
+              </span>
+            </div>
 
-      <div className="relative min-h-0 flex-1 px-3 pb-3">
-        <nav className="grid gap-1.5">
-          {sections.map((section) => {
-            const ItemIcon = section.icon
-            const active = currentSection === section.key
-
-            return (
-              <Button
-                key={section.key}
-                variant="ghost"
-                className={cn(
-                  'h-auto min-h-[54px] justify-start rounded-[18px] border border-transparent px-3 py-2.5 text-left text-foreground',
-                  active
-                    ? 'border-[color:color-mix(in_srgb,var(--ui-highlight)_16%,var(--ui-border))] bg-[color:color-mix(in_srgb,var(--ui-highlight)_10%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--ui-highlight)_10%,transparent)]'
-                    : 'hover:bg-accent/70',
-                )}
-                onClick={() => onSelect(section.key)}
+            {isMobile ? (
+              <button
+                className="sidebar-mobile-close"
+                onClick={onCloseMobile}
+                type="button"
+                aria-label="Cerrar sidebar"
               >
-                <span
-                  className={cn(
-                    'mr-3 grid size-9 shrink-0 place-items-center rounded-[14px] border transition-colors',
-                    active
-                      ? 'border-[color:color-mix(in_srgb,var(--ui-highlight)_18%,var(--ui-border))] bg-[color:color-mix(in_srgb,var(--ui-highlight)_12%,transparent)] text-[var(--ui-highlight)]'
-                      : 'border-border bg-background text-muted-foreground',
-                  )}
-                >
-                  <ItemIcon className="size-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{section.label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{section.helper}</span>
-                </span>
-              </Button>
-            )
-          })}
-        </nav>
-      </div>
-    </div>
+                <X className="size-4" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="sidebar-body">
+            <div className="sidebar-search-shell">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="h-10 rounded-2xl border-[var(--ui-border)] bg-background/80 pl-9 shadow-none"
+                  placeholder="Buscar módulo"
+                />
+              </div>
+            </div>
+
+            <nav className="sidebar-items">
+              {filteredSections.map((section) => {
+                const ItemIcon = section.icon
+                const active = currentSection === section.key
+
+                return (
+                  <button
+                    key={section.key}
+                    type="button"
+                    className={cn('sidebar-item-link', active && 'active')}
+                    onClick={() => onSelect(section.key)}
+                    title={!isExpanded && !isMobile ? section.label : undefined}
+                  >
+                    <span className="sidebar-item-link-icon-content">
+                      <ItemIcon className="size-4" />
+                    </span>
+                    <span className="sidebar-item-link-label">{section.label}</span>
+                  </button>
+                )
+              })}
+            </nav>
+          </div>
+        </div>
+
+        {!isMobile ? (
+          <button className="sidebar-toggle-btn" onClick={onToggle} type="button" aria-label="Cambiar tamaño del sidebar">
+            <ChevronRight className="size-4" />
+          </button>
+        ) : null}
+      </aside>
+    </>
   )
 }
 
