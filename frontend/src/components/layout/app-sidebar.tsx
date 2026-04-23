@@ -79,18 +79,20 @@ const sections: SidebarSection[] = [
 
 function AppSidebar({ currentSection, onSelect }: AppSidebarProps) {
   return (
-    <div className="grid gap-4">
-      <div className="rounded-[1.75rem] border border-[var(--ui-border)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ui-card)_98%,transparent),color-mix(in_srgb,var(--ui-highlight)_6%,var(--ui-card)))] p-4 shadow-[var(--ui-shadow-soft)]">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-pink-400 via-rose-500 to-orange-400 text-sm font-black text-white shadow-[var(--ui-shadow-soft)]">
-            GL
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Gummy Lover's</p>
-            <p className="truncate text-base font-semibold">Control interno</p>
-          </div>
-        </div>
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[30px] border border-[var(--ui-border)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ui-card)_94%,transparent),color-mix(in_srgb,var(--ui-highlight)_6%,var(--ui-card)))] shadow-[var(--ui-shadow-card)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_24%),radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--ui-highlight)_16%,transparent),transparent_34%)]" />
 
+      <div className="relative flex items-center gap-3 px-3 pb-2 pt-3">
+        <div className="grid size-[52px] shrink-0 place-items-center rounded-[18px] border border-[var(--ui-border)] bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--ui-highlight)_20%,rgba(255,255,255,0.14)),transparent_60%),var(--ui-card)] text-sm font-black text-foreground shadow-[var(--ui-shadow-soft)]">
+          GL
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Gummy Lover&apos;s</p>
+          <p className="truncate text-[0.95rem] font-semibold tracking-[-0.03em] text-foreground">Control Hub</p>
+        </div>
+      </div>
+
+      <div className="relative min-h-0 flex-1 px-3 pb-3">
         <nav className="grid gap-1.5">
           {sections.map((section) => {
             const ItemIcon = section.icon
@@ -101,18 +103,18 @@ function AppSidebar({ currentSection, onSelect }: AppSidebarProps) {
                 key={section.key}
                 variant="ghost"
                 className={cn(
-                  'h-auto justify-start rounded-2xl px-3 py-3 text-left',
+                  'h-auto min-h-[54px] justify-start rounded-[18px] border border-transparent px-3 py-2.5 text-left text-foreground',
                   active
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/95 hover:text-primary-foreground'
-                    : 'hover:bg-muted/70',
+                    ? 'border-[color:color-mix(in_srgb,var(--ui-highlight)_16%,var(--ui-border))] bg-[color:color-mix(in_srgb,var(--ui-highlight)_10%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--ui-highlight)_10%,transparent)]'
+                    : 'hover:bg-accent/70',
                 )}
                 onClick={() => onSelect(section.key)}
               >
                 <span
                   className={cn(
-                    'mr-3 grid size-9 shrink-0 place-items-center rounded-xl border',
+                    'mr-3 grid size-9 shrink-0 place-items-center rounded-[14px] border transition-colors',
                     active
-                      ? 'border-white/15 bg-white/10'
+                      ? 'border-[color:color-mix(in_srgb,var(--ui-highlight)_18%,var(--ui-border))] bg-[color:color-mix(in_srgb,var(--ui-highlight)_12%,transparent)] text-[var(--ui-highlight)]'
                       : 'border-border bg-background text-muted-foreground',
                   )}
                 >
@@ -120,14 +122,7 @@ function AppSidebar({ currentSection, onSelect }: AppSidebarProps) {
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium">{section.label}</span>
-                  <span
-                    className={cn(
-                      'block truncate text-xs',
-                      active ? 'text-primary-foreground/80' : 'text-muted-foreground',
-                    )}
-                  >
-                    {section.helper}
-                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">{section.helper}</span>
                 </span>
               </Button>
             )

@@ -20,7 +20,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet'
 import { UserMenu } from '@/components/user-menu'
 import {
@@ -398,72 +397,71 @@ function App() {
   }
 
   return (
-    <div className="min-h-svh bg-background pb-28 sm:pb-0">
-      <header className="sticky top-0 z-40 px-3 pt-3 sm:px-5 2xl:px-8">
-        <div className="grid w-full gap-3 rounded-[1.75rem] border border-[var(--ui-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ui-card)_96%,transparent),color-mix(in_srgb,var(--ui-highlight)_6%,var(--ui-card)))] px-3 py-3 shadow-[var(--ui-shadow-soft)] backdrop-blur-xl md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="lg:hidden">
+    <div className="min-h-svh bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_34%),radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--ui-highlight)_10%,transparent),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.03),transparent_28%),var(--ui-background)] lg:h-svh lg:overflow-hidden">
+      <aside className="fixed inset-y-[12px] left-[12px] z-30 hidden w-[292px] lg:block">
+        <AppSidebar currentSection={currentSection} onSelect={handleSectionSelect} />
+      </aside>
+
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="w-[320px] max-w-[88vw] border-r px-3 py-3">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menu lateral</SheetTitle>
+            <SheetDescription>Acceso a dashboard y tablas base.</SheetDescription>
+          </SheetHeader>
+          <div className="h-full pt-1">
+            <AppSidebar currentSection={currentSection} onSelect={handleSectionSelect} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="px-3 py-3 sm:px-4 lg:fixed lg:inset-y-[12px] lg:right-[12px] lg:left-[316px] lg:flex lg:min-h-0 lg:flex-col lg:overflow-auto lg:px-0 lg:py-0">
+        <div className="grid gap-4 md:gap-5">
+          <header className="relative min-w-0 self-start overflow-visible rounded-[28px] border border-[var(--ui-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ui-card)_96%,transparent),color-mix(in_srgb,var(--ui-highlight)_4%,var(--ui-card)))] px-3 py-3 shadow-[var(--ui-shadow-soft)] backdrop-blur-xl md:px-4">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <Button variant="outline" size="icon" className="shrink-0 lg:hidden" onClick={() => setMobileSidebarOpen(true)}>
                   <Menu className="size-4" />
                   <span className="sr-only">Abrir menu lateral</span>
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[320px] max-w-[88vw] border-r px-3 py-4">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Menu lateral</SheetTitle>
-                  <SheetDescription>Acceso a dashboard y tablas base.</SheetDescription>
-                </SheetHeader>
-                <AppSidebar currentSection={currentSection} onSelect={handleSectionSelect} />
-              </SheetContent>
-            </Sheet>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="m-0 truncate text-[clamp(1.2rem,2.4vw,1.55rem)] font-semibold tracking-[-0.04em] text-foreground">
+                      {currentMeta.title}
+                    </h1>
+                    <Badge variant="outline">{currentMeta.badge}</Badge>
+                  </div>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">{currentMeta.description}</p>
+                </div>
+              </div>
 
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold tracking-normal sm:text-xl">Gummy Lover&apos;s ERP</h1>
-              <p className="truncate text-xs text-muted-foreground">{currentMeta.title}</p>
+              <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+                <DirectSaleAction user={user} products={products} onCreated={refreshData} />
+                <ExpenseAction user={user} onCreated={refreshData} />
+                <PaymentAction customers={customers} onCreated={refreshData} />
+                <ThemeToggle theme={theme} onToggle={toggleTheme} />
+                <Button variant="ghost" size="icon" onClick={() => void refreshData()} disabled={isLoading}>
+                  <RefreshCw className={isLoading ? 'animate-spin' : ''} />
+                  <span className="sr-only">Actualizar</span>
+                </Button>
+                <UserMenu user={user} onLogout={() => void handleLogout()} />
+              </div>
             </div>
-          </div>
+          </header>
 
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-            <DirectSaleAction user={user} products={products} onCreated={refreshData} />
-            <ExpenseAction user={user} onCreated={refreshData} />
-            <PaymentAction customers={customers} onCreated={refreshData} />
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <Button variant="ghost" size="icon" onClick={() => void refreshData()} disabled={isLoading}>
-              <RefreshCw className={isLoading ? 'animate-spin' : ''} />
-              <span className="sr-only">Actualizar</span>
-            </Button>
-            <UserMenu user={user} onLogout={() => void handleLogout()} />
-          </div>
-        </div>
-      </header>
-
-      <main className="grid gap-5 px-4 py-5 sm:px-6 sm:py-6 2xl:px-8 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-[5.5rem]">
-            <AppSidebar currentSection={currentSection} onSelect={handleSectionSelect} />
-          </div>
-        </aside>
-
-        <div className="grid gap-5">
-          <section>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{currentMeta.badge}</Badge>
+          {lastUpdated || error ? (
+            <div className="flex flex-wrap items-center gap-3 px-1">
               {lastUpdated ? <span className="text-xs text-muted-foreground">Actualizado {lastUpdated}</span> : null}
-            </div>
-            <h2 className="text-2xl font-semibold sm:text-3xl">{currentMeta.title}</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{currentMeta.description}</p>
-          </section>
-
-          {error ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+              {error ? (
+                <span className="rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive">
+                  {error}
+                </span>
+              ) : null}
             </div>
           ) : null}
 
           {currentSection === 'dashboard' ? (
             <>
-              <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {metrics.map((metric) => (
                   <MetricCard key={metric.title} {...metric} />
                 ))}
@@ -543,7 +541,7 @@ function App() {
             />
           )}
         </div>
-      </main>
+      </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card p-3 shadow-lg sm:hidden">
         <div className="grid w-full grid-cols-3 gap-2">
