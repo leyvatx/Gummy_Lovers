@@ -9,7 +9,6 @@ import { PaymentAction } from '@/components/forms/payment-action'
 import { AppSidebar, type AppSection } from '@/components/layout/app-sidebar'
 import { CatalogWorkspace } from '@/components/management/catalog-workspace'
 import { LoginScreen } from '@/components/login-screen'
-import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -492,12 +491,11 @@ function App() {
                   </>
                 ) : null}
                 {lastUpdated ? <span className="hidden text-xs text-muted-foreground xl:inline">Actualizado {lastUpdated}</span> : null}
-                <ThemeToggle theme={theme} onToggle={toggleTheme} />
                 <Button variant="ghost" size="icon" onClick={() => void refreshData()} disabled={isLoading}>
                   <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                   <span className="sr-only">Actualizar</span>
                 </Button>
-                <UserMenu user={user} onLogout={() => void handleLogout()} />
+                <UserMenu user={user} theme={theme} onLogout={() => void handleLogout()} onToggleTheme={toggleTheme} />
               </div>
             </div>
           </header>

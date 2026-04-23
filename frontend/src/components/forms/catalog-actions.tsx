@@ -1,5 +1,5 @@
 import { type FormEvent, useMemo, useState } from 'react'
-import { Boxes, Package2, Tags, Truck, UserRoundPlus, Wallet2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,6 +66,15 @@ function errorMessage(error: unknown, fallbackMessage: string) {
   return (error as ApiError)?.message ?? fallbackMessage
 }
 
+function CreateTrigger({ label }: { label: string }) {
+  return (
+    <Button variant="outline" size="icon" className="size-10 rounded-2xl" aria-label={label} title={label}>
+      <Plus className="size-4" />
+      <span className="sr-only">{label}</span>
+    </Button>
+  )
+}
+
 function SupplierAction({ onCreated }: SupplierActionProps) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -96,10 +105,7 @@ function SupplierAction({ onCreated }: SupplierActionProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Truck className="size-4" />
-          Proveedor
-        </Button>
+        <CreateTrigger label="Agregar proveedor" />
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>
@@ -168,10 +174,7 @@ function ProductAction({ onCreated }: ProductActionProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Package2 className="size-4" />
-          Producto
-        </Button>
+        <CreateTrigger label="Agregar producto" />
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>
@@ -249,10 +252,7 @@ function PortionAction({ products, onCreated }: PortionActionProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Tags className="size-4" />
-          Porcion
-        </Button>
+        <CreateTrigger label="Agregar porción" />
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>
@@ -347,10 +347,7 @@ function CustomerAction({ onCreated }: CustomerActionProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <UserRoundPlus className="size-4" />
-          Cliente
-        </Button>
+        <CreateTrigger label="Agregar cliente" />
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>
@@ -450,10 +447,7 @@ function CustomerPriceAction({ customers, products, onCreated }: CustomerPriceAc
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Wallet2 className="size-4" />
-          Precio
-        </Button>
+        <CreateTrigger label="Agregar precio" />
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>
@@ -591,10 +585,7 @@ function InventoryLotAction({ products, suppliers, user, onCreated }: InventoryL
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Boxes className="size-4" />
-          Lote
-        </Button>
+        <CreateTrigger label="Agregar lote" />
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>

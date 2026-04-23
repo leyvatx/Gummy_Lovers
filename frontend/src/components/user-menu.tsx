@@ -1,4 +1,4 @@
-import { LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { LogOut, Moon, Sun } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -14,23 +14,28 @@ import type { AuthUser } from '@/lib/api'
 
 type UserMenuProps = {
   user: AuthUser
+  theme: 'light' | 'dark'
   onLogout: () => void
+  onToggleTheme: () => void
 }
 
-function UserMenu({ user, onLogout }: UserMenuProps) {
+function UserMenu({ user, theme, onLogout, onToggleTheme }: UserMenuProps) {
+  const isDark = theme === 'dark'
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-11 gap-3 rounded-2xl px-2 sm:pr-3" aria-label="Abrir menú de usuario">
-          <UserAvatar user={user} className="size-8" />
-          <span className="hidden min-w-0 text-left sm:block">
-            <span className="block truncate text-sm font-medium leading-none">{user.full_name}</span>
-            <span className="mt-1 block truncate text-xs text-muted-foreground">Admin fundador</span>
-          </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 rounded-2xl"
+          aria-label="Abrir menú de usuario"
+        >
+          <UserAvatar user={user} className="size-9" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuLabel className="flex items-center gap-3">
+      <DropdownMenuContent align="end" className="w-[min(260px,calc(100vw-2rem))] rounded-2xl p-2">
+        <DropdownMenuLabel className="flex items-center gap-3 rounded-xl px-2 py-2">
           <UserAvatar user={user} className="size-10" />
           <span className="min-w-0">
             <span className="block truncate font-medium">{user.full_name}</span>
@@ -38,13 +43,9 @@ function UserMenu({ user, onLogout }: UserMenuProps) {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <ShieldCheck className="mr-2 size-4" />
-          Perfil administrador
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Settings className="mr-2 size-4" />
-          Configuración
+        <DropdownMenuItem onClick={onToggleTheme}>
+          {isDark ? <Sun className="mr-2 size-4" /> : <Moon className="mr-2 size-4" />}
+          {isDark ? 'Usar modo claro' : 'Usar modo oscuro'}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onLogout}>
