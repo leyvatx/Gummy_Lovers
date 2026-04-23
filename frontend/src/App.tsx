@@ -433,7 +433,7 @@ function App() {
   }
 
   if (!user) {
-    return <LoginScreen theme={theme} onToggleTheme={toggleTheme} onLogin={handleLogin} />
+    return <LoginScreen onLogin={handleLogin} />
   }
 
   const topbarAction = (() => {
@@ -515,7 +515,7 @@ function App() {
                 </div>
               </div>
 
-              <div className="page-topbar-actions flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
+              <div className="page-topbar-actions flex min-w-0 items-center justify-start gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0">
                 {topbarAction}
                 {lastUpdated ? <span className="hidden text-xs text-muted-foreground xl:inline">Actualizado {lastUpdated}</span> : null}
                 <Button variant="ghost" size="icon" onClick={() => void refreshData()} disabled={isLoading}>

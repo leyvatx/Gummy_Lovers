@@ -49,33 +49,25 @@ function CustomerTable({ customers }: CustomerTableProps) {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left text-sm">
-          <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
-              <th className="px-4 py-3 font-medium">Contacto</th>
-              <th className="px-4 py-3 font-medium">Límite</th>
-              <th className="px-4 py-3 text-right font-medium">Saldo</th>
-              <th className="px-4 py-3 text-right font-medium sm:px-5">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
+      {filteredCustomers.length === 0 ? (
+        <div className="border-t p-6 text-center text-sm text-muted-foreground">
+          No hay clientes mayoristas para mostrar.
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 p-4 md:hidden">
             {filteredCustomers.map((customer) => {
               const balance = toNumber(customer.outstanding_balance)
               const creditLimit = toNumber(customer.credit_limit)
               const overLimit = creditLimit > 0 && balance > creditLimit
 
               return (
-                <tr key={customer.id} className="border-t">
-                  <td className="px-4 py-4 font-medium sm:px-5">{customer.name}</td>
-                  <td className="px-4 py-4 text-muted-foreground">
-                    <div>{customer.contact_name || 'Sin contacto'}</div>
-                    <div className="text-xs">{customer.phone || 'Sin teléfono'}</div>
-                  </td>
-                  <td className="px-4 py-4 tabular-nums text-muted-foreground">{formatMoney(customer.credit_limit)}</td>
-                  <td className="px-4 py-4 text-right font-semibold tabular-nums">{formatMoney(customer.outstanding_balance)}</td>
-                  <td className="px-4 py-4 text-right sm:px-5">
+                <article key={customer.id} className="rounded-2xl border bg-background/60 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{customer.name}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{customer.contact_name || 'Sin contacto'}</p>
+                    </div>
                     <Badge
                       variant="outline"
                       className={cn(
@@ -83,21 +75,74 @@ function CustomerTable({ customers }: CustomerTableProps) {
                         overLimit && 'border-amber-200 bg-amber-50 text-amber-800',
                       )}
                     >
-                      {balance <= 0 ? 'Al día' : overLimit ? 'Sobre límite' : 'Pendiente'}
+                      {balance <= 0 ? 'Al dia' : overLimit ? 'Sobre limite' : 'Pendiente'}
                     </Badge>
-                  </td>
-                </tr>
+                  </div>
+
+                  <dl className="mt-4 grid gap-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Telefono</dt>
+                      <dd>{customer.phone || 'Sin telefono'}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Limite</dt>
+                      <dd className="tabular-nums">{formatMoney(customer.credit_limit)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Saldo</dt>
+                      <dd className="font-semibold tabular-nums">{formatMoney(customer.outstanding_balance)}</dd>
+                    </div>
+                  </dl>
+                </article>
               )
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
 
-      {filteredCustomers.length === 0 ? (
-        <div className="border-t p-6 text-center text-sm text-muted-foreground">
-          No hay clientes mayoristas para mostrar.
-        </div>
-      ) : null}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[680px] text-left text-sm">
+              <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
+                  <th className="px-4 py-3 font-medium">Contacto</th>
+                  <th className="px-4 py-3 font-medium">Limite</th>
+                  <th className="px-4 py-3 text-right font-medium">Saldo</th>
+                  <th className="px-4 py-3 text-right font-medium sm:px-5">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCustomers.map((customer) => {
+                  const balance = toNumber(customer.outstanding_balance)
+                  const creditLimit = toNumber(customer.credit_limit)
+                  const overLimit = creditLimit > 0 && balance > creditLimit
+
+                  return (
+                    <tr key={customer.id} className="border-t">
+                      <td className="px-4 py-4 font-medium sm:px-5">{customer.name}</td>
+                      <td className="px-4 py-4 text-muted-foreground">
+                        <div>{customer.contact_name || 'Sin contacto'}</div>
+                        <div className="text-xs">{customer.phone || 'Sin telefono'}</div>
+                      </td>
+                      <td className="px-4 py-4 tabular-nums text-muted-foreground">{formatMoney(customer.credit_limit)}</td>
+                      <td className="px-4 py-4 text-right font-semibold tabular-nums">{formatMoney(customer.outstanding_balance)}</td>
+                      <td className="px-4 py-4 text-right sm:px-5">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            balance <= 0 && 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                            overLimit && 'border-amber-200 bg-amber-50 text-amber-800',
+                          )}
+                        >
+                          {balance <= 0 ? 'Al dia' : overLimit ? 'Sobre limite' : 'Pendiente'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </section>
   )
 }

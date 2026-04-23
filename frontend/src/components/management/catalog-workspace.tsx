@@ -153,7 +153,7 @@ function SectionMetrics({ items }: { items: MetricItem[] }) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{item.label}</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.04em]">{item.value}</p>
+                <p className="mt-2 break-words text-xl font-semibold tracking-[-0.04em]">{item.value}</p>
               </div>
               <span className="grid size-10 place-items-center rounded-2xl border bg-background text-muted-foreground">
                 <Icon className="size-4" />
@@ -171,43 +171,40 @@ function EmptyState({ label }: { label: string }) {
   return <div className="p-6 text-sm text-muted-foreground">{label}</div>
 }
 
+function MobileCards({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-3 p-4 md:hidden">{children}</div>
+}
+
+function MobileCard({ children }: { children: React.ReactNode }) {
+  return <article className="rounded-2xl border bg-background/60 p-4 shadow-sm">{children}</article>
+}
+
+function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-right">{value}</dd>
+    </div>
+  )
+}
+
+function DesktopTable({ children }: { children: React.ReactNode }) {
+  return <div className="hidden overflow-x-auto md:block">{children}</div>
+}
+
 function SuppliersSection({ suppliers }: Pick<CatalogWorkspaceProps, 'suppliers'>) {
   const [query, setQuery] = useState('')
   const normalizedQuery = normalizeSearch(query)
-
   const filteredSuppliers = useMemo(
-    () =>
-      suppliers.filter((supplier) =>
-        matchesQuery(normalizedQuery, [supplier.name, supplier.phone, supplier.notes]),
-      ),
+    () => suppliers.filter((supplier) => matchesQuery(normalizedQuery, [supplier.name, supplier.phone, supplier.notes])),
     [normalizedQuery, suppliers],
   )
 
   const metrics: MetricItem[] = [
-    {
-      icon: Truck,
-      label: 'Proveedores',
-      value: suppliers.length.toString(),
-      helper: 'Base total de compra',
-    },
-    {
-      icon: Users,
-      label: 'Con telefono',
-      value: suppliers.filter((supplier) => Boolean(supplier.phone)).length.toString(),
-      helper: 'Contactos listos para compra',
-    },
-    {
-      icon: Package2,
-      label: 'Con notas',
-      value: suppliers.filter((supplier) => Boolean(supplier.notes)).length.toString(),
-      helper: 'Proveedores con contexto operativo',
-    },
-    {
-      icon: Search,
-      label: 'Visibles',
-      value: filteredSuppliers.length.toString(),
-      helper: 'Resultado del filtro actual',
-    },
+    { icon: Truck, label: 'Proveedores', value: suppliers.length.toString(), helper: 'Base total de compra' },
+    { icon: Users, label: 'Con telefono', value: suppliers.filter((supplier) => Boolean(supplier.phone)).length.toString(), helper: 'Contactos listos para compra' },
+    { icon: Package2, label: 'Con notas', value: suppliers.filter((supplier) => Boolean(supplier.notes)).length.toString(), helper: 'Proveedores con contexto operativo' },
+    { icon: Search, label: 'Visibles', value: filteredSuppliers.length.toString(), helper: 'Resultado del filtro actual' },
   ]
 
   return (
@@ -228,32 +225,53 @@ function SuppliersSection({ suppliers }: Pick<CatalogWorkspaceProps, 'suppliers'
           {filteredSuppliers.length === 0 ? (
             <EmptyState label="No hay proveedores para mostrar con este filtro." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium sm:px-5">Nombre</th>
-                    <th className="px-4 py-3 font-medium">Telefono</th>
-                    <th className="px-4 py-3 font-medium">Estado</th>
-                    <th className="px-4 py-3 font-medium sm:px-5">Notas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSuppliers.map((supplier) => (
-                    <tr key={supplier.id} className="border-t">
-                      <td className="px-4 py-4 font-medium sm:px-5">{supplier.name}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{supplier.phone || 'Sin telefono'}</td>
-                      <td className="px-4 py-4">
-                        <Badge variant="outline" className={supplier.phone ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
-                          {supplier.phone ? 'Contacto listo' : 'Sin contacto'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-4 text-muted-foreground sm:px-5">{supplier.notes || 'Sin notas'}</td>
+            <>
+              <MobileCards>
+                {filteredSuppliers.map((supplier) => (
+                  <MobileCard key={supplier.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{supplier.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{supplier.phone || 'Sin telefono'}</p>
+                      </div>
+                      <Badge variant="outline" className={supplier.phone ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                        {supplier.phone ? 'Contacto listo' : 'Sin contacto'}
+                      </Badge>
+                    </div>
+                    <dl className="mt-4 grid gap-2 text-sm">
+                      <FieldRow label="Notas" value={supplier.notes || 'Sin notas'} />
+                    </dl>
+                  </MobileCard>
+                ))}
+              </MobileCards>
+
+              <DesktopTable>
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium sm:px-5">Nombre</th>
+                      <th className="px-4 py-3 font-medium">Telefono</th>
+                      <th className="px-4 py-3 font-medium">Estado</th>
+                      <th className="px-4 py-3 font-medium sm:px-5">Notas</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredSuppliers.map((supplier) => (
+                      <tr key={supplier.id} className="border-t">
+                        <td className="px-4 py-4 font-medium sm:px-5">{supplier.name}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{supplier.phone || 'Sin telefono'}</td>
+                        <td className="px-4 py-4">
+                          <Badge variant="outline" className={supplier.phone ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                            {supplier.phone ? 'Contacto listo' : 'Sin contacto'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4 text-muted-foreground sm:px-5">{supplier.notes || 'Sin notas'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DesktopTable>
+            </>
           )}
         </CardContent>
       </Card>
@@ -264,15 +282,10 @@ function SuppliersSection({ suppliers }: Pick<CatalogWorkspaceProps, 'suppliers'
 function ProductsSection({ products }: Pick<CatalogWorkspaceProps, 'products'>) {
   const [query, setQuery] = useState('')
   const normalizedQuery = normalizeSearch(query)
-
   const filteredProducts = useMemo(
     () =>
       products.filter((product) =>
-        matchesQuery(normalizedQuery, [
-          product.name,
-          product.sku,
-          ...product.portions.map((portion) => portion.name),
-        ]),
+        matchesQuery(normalizedQuery, [product.name, product.sku, ...product.portions.map((portion) => portion.name)]),
       ),
     [normalizedQuery, products],
   )
@@ -285,30 +298,10 @@ function ProductsSection({ products }: Pick<CatalogWorkspaceProps, 'products'>) 
   const noPortionsCount = products.filter((product) => product.portions.filter((portion) => portion.active).length === 0).length
 
   const metrics: MetricItem[] = [
-    {
-      icon: Package2,
-      label: 'Productos',
-      value: products.length.toString(),
-      helper: 'Catalogo activo',
-    },
-    {
-      icon: Boxes,
-      label: 'Stock total',
-      value: formatGrams(totalAvailableGrams),
-      helper: 'Inventario disponible acumulado',
-    },
-    {
-      icon: Tags,
-      label: 'Stock bajo',
-      value: lowStockCount.toString(),
-      helper: 'Productos debajo de 2 kg',
-    },
-    {
-      icon: Search,
-      label: 'Sin porciones',
-      value: noPortionsCount.toString(),
-      helper: 'Productos incompletos para vender',
-    },
+    { icon: Package2, label: 'Productos', value: products.length.toString(), helper: 'Catalogo activo' },
+    { icon: Boxes, label: 'Stock total', value: formatGrams(totalAvailableGrams), helper: 'Inventario disponible acumulado' },
+    { icon: Tags, label: 'Stock bajo', value: lowStockCount.toString(), helper: 'Productos debajo de 2 kg' },
+    { icon: Search, label: 'Sin porciones', value: noPortionsCount.toString(), helper: 'Productos incompletos para vender' },
   ]
 
   return (
@@ -329,52 +322,95 @@ function ProductsSection({ products }: Pick<CatalogWorkspaceProps, 'products'>) 
           {filteredProducts.length === 0 ? (
             <EmptyState label="No hay productos para mostrar con este filtro." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[940px] text-left text-sm">
-                <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium sm:px-5">Producto</th>
-                    <th className="px-4 py-3 font-medium">SKU</th>
-                    <th className="px-4 py-3 font-medium">Gramos por pieza</th>
-                    <th className="px-4 py-3 font-medium">Disponible</th>
-                    <th className="px-4 py-3 font-medium">Estado</th>
-                    <th className="px-4 py-3 font-medium sm:px-5">Porciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((product) => {
-                    const activePortions = product.portions.filter((portion) => portion.active)
-                    const status = inventoryStatus(toNumber(product.available_grams))
+            <>
+              <MobileCards>
+                {filteredProducts.map((product) => {
+                  const activePortions = product.portions.filter((portion) => portion.active)
+                  const status = inventoryStatus(toNumber(product.available_grams))
 
-                    return (
-                      <tr key={product.id} className="border-t">
-                        <td className="px-4 py-4 font-medium sm:px-5">{product.name}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{product.sku}</td>
-                        <td className="px-4 py-4 text-muted-foreground tabular-nums">{formatGrams(product.grams_per_piece)}</td>
-                        <td className="px-4 py-4 font-medium tabular-nums">{formatGrams(product.available_grams)}</td>
-                        <td className="px-4 py-4">
-                          <Badge variant="outline" className={status.className}>
-                            {status.label}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-4 sm:px-5">
-                          <div className="flex flex-wrap gap-2">
-                            {activePortions.map((portion) => (
-                              <Badge key={portion.id} variant="secondary">
-                                {portion.name} · {portion.pieces_per_portion} pzs
-                              </Badge>
-                            ))}
-                            {activePortions.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">Sin porciones</span>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <MobileCard key={product.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{product.name}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{product.sku}</p>
+                        </div>
+                        <Badge variant="outline" className={status.className}>
+                          {status.label}
+                        </Badge>
+                      </div>
+                      <dl className="mt-4 grid gap-2 text-sm">
+                        <FieldRow label="Gramos por pieza" value={<span className="tabular-nums">{formatGrams(product.grams_per_piece)}</span>} />
+                        <FieldRow label="Disponible" value={<span className="tabular-nums font-medium">{formatGrams(product.available_grams)}</span>} />
+                        <FieldRow
+                          label="Porciones"
+                          value={
+                            activePortions.length > 0 ? (
+                              <div className="flex flex-wrap justify-end gap-2">
+                                {activePortions.map((portion) => (
+                                  <Badge key={portion.id} variant="secondary">
+                                    {portion.name}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              'Sin porciones'
+                            )
+                          }
+                        />
+                      </dl>
+                    </MobileCard>
+                  )
+                })}
+              </MobileCards>
+
+              <DesktopTable>
+                <table className="w-full min-w-[940px] text-left text-sm">
+                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium sm:px-5">Producto</th>
+                      <th className="px-4 py-3 font-medium">SKU</th>
+                      <th className="px-4 py-3 font-medium">Gramos por pieza</th>
+                      <th className="px-4 py-3 font-medium">Disponible</th>
+                      <th className="px-4 py-3 font-medium">Estado</th>
+                      <th className="px-4 py-3 font-medium sm:px-5">Porciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((product) => {
+                      const activePortions = product.portions.filter((portion) => portion.active)
+                      const status = inventoryStatus(toNumber(product.available_grams))
+
+                      return (
+                        <tr key={product.id} className="border-t">
+                          <td className="px-4 py-4 font-medium sm:px-5">{product.name}</td>
+                          <td className="px-4 py-4 text-muted-foreground">{product.sku}</td>
+                          <td className="px-4 py-4 text-muted-foreground tabular-nums">{formatGrams(product.grams_per_piece)}</td>
+                          <td className="px-4 py-4 font-medium tabular-nums">{formatGrams(product.available_grams)}</td>
+                          <td className="px-4 py-4">
+                            <Badge variant="outline" className={status.className}>
+                              {status.label}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-4 sm:px-5">
+                            <div className="flex flex-wrap gap-2">
+                              {activePortions.map((portion) => (
+                                <Badge key={portion.id} variant="secondary">
+                                  {portion.name} · {portion.pieces_per_portion} pzs
+                                </Badge>
+                              ))}
+                              {activePortions.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">Sin porciones</span>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </DesktopTable>
+            </>
           )}
         </CardContent>
       </Card>
@@ -398,43 +434,17 @@ function PortionsSection({ products }: Pick<CatalogWorkspaceProps, 'products'>) 
 
   const normalizedQuery = normalizeSearch(query)
   const filteredPortions = useMemo(
-    () =>
-      portions.filter((portion) =>
-        matchesQuery(normalizedQuery, [portion.productName, portion.product_sku, portion.name]),
-      ),
+    () => portions.filter((portion) => matchesQuery(normalizedQuery, [portion.productName, portion.product_sku, portion.name])),
     [normalizedQuery, portions],
   )
 
-  const averagePieces =
-    portions.length > 0
-      ? portions.reduce((sum, portion) => sum + portion.pieces_per_portion, 0) / portions.length
-      : 0
+  const averagePieces = portions.length > 0 ? portions.reduce((sum, portion) => sum + portion.pieces_per_portion, 0) / portions.length : 0
 
   const metrics: MetricItem[] = [
-    {
-      icon: Tags,
-      label: 'Porciones',
-      value: portions.length.toString(),
-      helper: 'Configuraciones operativas',
-    },
-    {
-      icon: Package2,
-      label: 'Productos cubiertos',
-      value: new Set(portions.map((portion) => portion.product)).size.toString(),
-      helper: 'Productos listos para venta',
-    },
-    {
-      icon: Boxes,
-      label: 'Promedio',
-      value: `${averagePieces.toLocaleString('es-MX', { maximumFractionDigits: 1 })} pzs`,
-      helper: 'Piezas por porcion',
-    },
-    {
-      icon: Search,
-      label: 'Visibles',
-      value: filteredPortions.length.toString(),
-      helper: 'Resultado del filtro actual',
-    },
+    { icon: Tags, label: 'Porciones', value: portions.length.toString(), helper: 'Configuraciones operativas' },
+    { icon: Package2, label: 'Productos cubiertos', value: new Set(portions.map((portion) => portion.product)).size.toString(), helper: 'Productos listos para venta' },
+    { icon: Boxes, label: 'Promedio', value: `${averagePieces.toLocaleString('es-MX', { maximumFractionDigits: 1 })} pzs`, helper: 'Piezas por porcion' },
+    { icon: Search, label: 'Visibles', value: filteredPortions.length.toString(), helper: 'Resultado del filtro actual' },
   ]
 
   return (
@@ -455,34 +465,57 @@ function PortionsSection({ products }: Pick<CatalogWorkspaceProps, 'products'>) 
           {filteredPortions.length === 0 ? (
             <EmptyState label="No hay porciones para mostrar con este filtro." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left text-sm">
-                <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium sm:px-5">Producto</th>
-                    <th className="px-4 py-3 font-medium">SKU</th>
-                    <th className="px-4 py-3 font-medium">Porcion</th>
-                    <th className="px-4 py-3 font-medium">Piezas</th>
-                    <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPortions.map((portion) => (
-                    <tr key={portion.id} className="border-t">
-                      <td className="px-4 py-4 font-medium sm:px-5">{portion.productName}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{portion.product_sku}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{portion.name}</td>
-                      <td className="px-4 py-4 font-medium tabular-nums">{portion.pieces_per_portion}</td>
-                      <td className="px-4 py-4 sm:px-5">
-                        <Badge variant="outline" className={portion.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
-                          {portion.active ? 'Activa' : 'Inactiva'}
-                        </Badge>
-                      </td>
+            <>
+              <MobileCards>
+                {filteredPortions.map((portion) => (
+                  <MobileCard key={portion.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{portion.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {portion.productName} · {portion.product_sku}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={portion.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                        {portion.active ? 'Activa' : 'Inactiva'}
+                      </Badge>
+                    </div>
+                    <dl className="mt-4 grid gap-2 text-sm">
+                      <FieldRow label="Piezas" value={<span className="tabular-nums font-medium">{portion.pieces_per_portion}</span>} />
+                    </dl>
+                  </MobileCard>
+                ))}
+              </MobileCards>
+
+              <DesktopTable>
+                <table className="w-full min-w-[780px] text-left text-sm">
+                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium sm:px-5">Producto</th>
+                      <th className="px-4 py-3 font-medium">SKU</th>
+                      <th className="px-4 py-3 font-medium">Porcion</th>
+                      <th className="px-4 py-3 font-medium">Piezas</th>
+                      <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredPortions.map((portion) => (
+                      <tr key={portion.id} className="border-t">
+                        <td className="px-4 py-4 font-medium sm:px-5">{portion.productName}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{portion.product_sku}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{portion.name}</td>
+                        <td className="px-4 py-4 font-medium tabular-nums">{portion.pieces_per_portion}</td>
+                        <td className="px-4 py-4 sm:px-5">
+                          <Badge variant="outline" className={portion.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                            {portion.active ? 'Activa' : 'Inactiva'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DesktopTable>
+            </>
           )}
         </CardContent>
       </Card>
@@ -493,17 +526,8 @@ function PortionsSection({ products }: Pick<CatalogWorkspaceProps, 'products'>) 
 function CustomersSection({ customers }: Pick<CatalogWorkspaceProps, 'customers'>) {
   const [query, setQuery] = useState('')
   const normalizedQuery = normalizeSearch(query)
-
   const filteredCustomers = useMemo(
-    () =>
-      customers.filter((customer) =>
-        matchesQuery(normalizedQuery, [
-          customer.name,
-          customer.contact_name,
-          customer.phone,
-          customer.address,
-        ]),
-      ),
+    () => customers.filter((customer) => matchesQuery(normalizedQuery, [customer.name, customer.contact_name, customer.phone, customer.address])),
     [customers, normalizedQuery],
   )
 
@@ -516,30 +540,10 @@ function CustomersSection({ customers }: Pick<CatalogWorkspaceProps, 'customers'
   }).length
 
   const metrics: MetricItem[] = [
-    {
-      icon: Users,
-      label: 'Clientes',
-      value: customers.length.toString(),
-      helper: 'Cartera comercial activa',
-    },
-    {
-      icon: Wallet2,
-      label: 'Por cobrar',
-      value: formatCompactMoney(totalReceivable),
-      helper: 'Saldo total abierto',
-    },
-    {
-      icon: CircleDollarSign,
-      label: 'Con saldo',
-      value: customersWithBalance.toString(),
-      helper: 'Clientes con cobranza pendiente',
-    },
-    {
-      icon: Search,
-      label: 'Sobre limite',
-      value: overLimitCount.toString(),
-      helper: 'Clientes que rebasaron credito',
-    },
+    { icon: Users, label: 'Clientes', value: customers.length.toString(), helper: 'Cartera comercial activa' },
+    { icon: Wallet2, label: 'Por cobrar', value: formatCompactMoney(totalReceivable), helper: 'Saldo total abierto' },
+    { icon: CircleDollarSign, label: 'Con saldo', value: customersWithBalance.toString(), helper: 'Clientes con cobranza pendiente' },
+    { icon: Search, label: 'Sobre limite', value: overLimitCount.toString(), helper: 'Clientes que rebasaron credito' },
   ]
 
   return (
@@ -560,45 +564,75 @@ function CustomersSection({ customers }: Pick<CatalogWorkspaceProps, 'customers'
           {filteredCustomers.length === 0 ? (
             <EmptyState label="No hay clientes para mostrar con este filtro." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
-                    <th className="px-4 py-3 font-medium">Contacto</th>
-                    <th className="px-4 py-3 font-medium">Direccion</th>
-                    <th className="px-4 py-3 font-medium">Limite</th>
-                    <th className="px-4 py-3 font-medium">Saldo</th>
-                    <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCustomers.map((customer) => {
-                    const balance = toNumber(customer.outstanding_balance)
-                    const creditLimit = toNumber(customer.credit_limit)
-                    const status = balanceStatus(balance, creditLimit)
+            <>
+              <MobileCards>
+                {filteredCustomers.map((customer) => {
+                  const balance = toNumber(customer.outstanding_balance)
+                  const creditLimit = toNumber(customer.credit_limit)
+                  const status = balanceStatus(balance, creditLimit)
 
-                    return (
-                      <tr key={customer.id} className="border-t">
-                        <td className="px-4 py-4 font-medium sm:px-5">{customer.name}</td>
-                        <td className="px-4 py-4 text-muted-foreground">
-                          <div>{customer.contact_name || 'Sin contacto'}</div>
-                          <div className="text-xs">{customer.phone || 'Sin telefono'}</div>
-                        </td>
-                        <td className="px-4 py-4 text-muted-foreground">{customer.address || 'Sin direccion'}</td>
-                        <td className="px-4 py-4 tabular-nums">{formatMoney(customer.credit_limit)}</td>
-                        <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(customer.outstanding_balance)}</td>
-                        <td className="px-4 py-4 sm:px-5">
-                          <Badge variant="outline" className={status.className}>
-                            {status.label}
-                          </Badge>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <MobileCard key={customer.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{customer.name}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{customer.contact_name || 'Sin contacto'}</p>
+                        </div>
+                        <Badge variant="outline" className={status.className}>
+                          {status.label}
+                        </Badge>
+                      </div>
+                      <dl className="mt-4 grid gap-2 text-sm">
+                        <FieldRow label="Telefono" value={customer.phone || 'Sin telefono'} />
+                        <FieldRow label="Direccion" value={customer.address || 'Sin direccion'} />
+                        <FieldRow label="Limite" value={<span className="tabular-nums">{formatMoney(customer.credit_limit)}</span>} />
+                        <FieldRow label="Saldo" value={<span className="font-semibold tabular-nums">{formatMoney(customer.outstanding_balance)}</span>} />
+                      </dl>
+                    </MobileCard>
+                  )
+                })}
+              </MobileCards>
+
+              <DesktopTable>
+                <table className="w-full min-w-[1000px] text-left text-sm">
+                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
+                      <th className="px-4 py-3 font-medium">Contacto</th>
+                      <th className="px-4 py-3 font-medium">Direccion</th>
+                      <th className="px-4 py-3 font-medium">Limite</th>
+                      <th className="px-4 py-3 font-medium">Saldo</th>
+                      <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCustomers.map((customer) => {
+                      const balance = toNumber(customer.outstanding_balance)
+                      const creditLimit = toNumber(customer.credit_limit)
+                      const status = balanceStatus(balance, creditLimit)
+
+                      return (
+                        <tr key={customer.id} className="border-t">
+                          <td className="px-4 py-4 font-medium sm:px-5">{customer.name}</td>
+                          <td className="px-4 py-4 text-muted-foreground">
+                            <div>{customer.contact_name || 'Sin contacto'}</div>
+                            <div className="text-xs">{customer.phone || 'Sin telefono'}</div>
+                          </td>
+                          <td className="px-4 py-4 text-muted-foreground">{customer.address || 'Sin direccion'}</td>
+                          <td className="px-4 py-4 tabular-nums">{formatMoney(customer.credit_limit)}</td>
+                          <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(customer.outstanding_balance)}</td>
+                          <td className="px-4 py-4 sm:px-5">
+                            <Badge variant="outline" className={status.className}>
+                              {status.label}
+                            </Badge>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </DesktopTable>
+            </>
           )}
         </CardContent>
       </Card>
@@ -609,49 +643,18 @@ function CustomersSection({ customers }: Pick<CatalogWorkspaceProps, 'customers'
 function PricesSection({ customerPrices }: Pick<CatalogWorkspaceProps, 'customerPrices'>) {
   const [query, setQuery] = useState('')
   const normalizedQuery = normalizeSearch(query)
-
   const filteredPrices = useMemo(
-    () =>
-      customerPrices.filter((price) =>
-        matchesQuery(normalizedQuery, [
-          price.customer_name,
-          price.product_sku,
-          price.portion_name,
-        ]),
-      ),
+    () => customerPrices.filter((price) => matchesQuery(normalizedQuery, [price.customer_name, price.product_sku, price.portion_name])),
     [customerPrices, normalizedQuery],
   )
 
-  const averagePrice =
-    customerPrices.length > 0
-      ? customerPrices.reduce((sum, price) => sum + toNumber(price.unit_price), 0) / customerPrices.length
-      : 0
+  const averagePrice = customerPrices.length > 0 ? customerPrices.reduce((sum, price) => sum + toNumber(price.unit_price), 0) / customerPrices.length : 0
 
   const metrics: MetricItem[] = [
-    {
-      icon: Wallet2,
-      label: 'Precios',
-      value: customerPrices.length.toString(),
-      helper: 'Acuerdos comerciales activos',
-    },
-    {
-      icon: Users,
-      label: 'Clientes cubiertos',
-      value: new Set(customerPrices.map((price) => price.customer)).size.toString(),
-      helper: 'Clientes con precio asignado',
-    },
-    {
-      icon: Package2,
-      label: 'SKUs cubiertos',
-      value: new Set(customerPrices.map((price) => price.product)).size.toString(),
-      helper: 'Productos con tarifa definida',
-    },
-    {
-      icon: CircleDollarSign,
-      label: 'Promedio',
-      value: formatMoney(averagePrice),
-      helper: 'Precio unitario medio',
-    },
+    { icon: Wallet2, label: 'Precios', value: customerPrices.length.toString(), helper: 'Acuerdos comerciales activos' },
+    { icon: Users, label: 'Clientes cubiertos', value: new Set(customerPrices.map((price) => price.customer)).size.toString(), helper: 'Clientes con precio asignado' },
+    { icon: Package2, label: 'SKUs cubiertos', value: new Set(customerPrices.map((price) => price.product)).size.toString(), helper: 'Productos con tarifa definida' },
+    { icon: CircleDollarSign, label: 'Promedio', value: formatMoney(averagePrice), helper: 'Precio unitario medio' },
   ]
 
   return (
@@ -672,34 +675,57 @@ function PricesSection({ customerPrices }: Pick<CatalogWorkspaceProps, 'customer
           {filteredPrices.length === 0 ? (
             <EmptyState label="No hay precios para mostrar con este filtro." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-left text-sm">
-                <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
-                    <th className="px-4 py-3 font-medium">SKU</th>
-                    <th className="px-4 py-3 font-medium">Porcion</th>
-                    <th className="px-4 py-3 font-medium">Precio</th>
-                    <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPrices.map((price) => (
-                    <tr key={price.id} className="border-t">
-                      <td className="px-4 py-4 font-medium sm:px-5">{price.customer_name}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{price.product_sku}</td>
-                      <td className="px-4 py-4 text-muted-foreground">{price.portion_name}</td>
-                      <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(price.unit_price)}</td>
-                      <td className="px-4 py-4 sm:px-5">
-                        <Badge variant="outline" className={price.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
-                          {price.active ? 'Activo' : 'Inactivo'}
-                        </Badge>
-                      </td>
+            <>
+              <MobileCards>
+                {filteredPrices.map((price) => (
+                  <MobileCard key={price.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{price.customer_name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {price.product_sku} · {price.portion_name}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={price.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                        {price.active ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </div>
+                    <dl className="mt-4 grid gap-2 text-sm">
+                      <FieldRow label="Precio" value={<span className="font-semibold tabular-nums">{formatMoney(price.unit_price)}</span>} />
+                    </dl>
+                  </MobileCard>
+                ))}
+              </MobileCards>
+
+              <DesktopTable>
+                <table className="w-full min-w-[880px] text-left text-sm">
+                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
+                      <th className="px-4 py-3 font-medium">SKU</th>
+                      <th className="px-4 py-3 font-medium">Porcion</th>
+                      <th className="px-4 py-3 font-medium">Precio</th>
+                      <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredPrices.map((price) => (
+                      <tr key={price.id} className="border-t">
+                        <td className="px-4 py-4 font-medium sm:px-5">{price.customer_name}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{price.product_sku}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{price.portion_name}</td>
+                        <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(price.unit_price)}</td>
+                        <td className="px-4 py-4 sm:px-5">
+                          <Badge variant="outline" className={price.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                            {price.active ? 'Activo' : 'Inactivo'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DesktopTable>
+            </>
           )}
         </CardContent>
       </Card>
@@ -720,15 +746,7 @@ function LotsSection({ inventoryLots }: Pick<CatalogWorkspaceProps, 'inventoryLo
 
   const normalizedQuery = normalizeSearch(query)
   const filteredLots = useMemo(
-    () =>
-      sortedLots.filter((lot) =>
-        matchesQuery(normalizedQuery, [
-          lot.lot_code,
-          lot.product_sku,
-          lot.supplier_name,
-          lot.purchased_at,
-        ]),
-      ),
+    () => sortedLots.filter((lot) => matchesQuery(normalizedQuery, [lot.lot_code, lot.product_sku, lot.supplier_name, lot.purchased_at])),
     [normalizedQuery, sortedLots],
   )
 
@@ -737,30 +755,10 @@ function LotsSection({ inventoryLots }: Pick<CatalogWorkspaceProps, 'inventoryLo
   const remainingValue = inventoryLots.reduce((sum, lot) => sum + remainingLotValue(lot), 0)
 
   const metrics: MetricItem[] = [
-    {
-      icon: Boxes,
-      label: 'Lotes',
-      value: inventoryLots.length.toString(),
-      helper: 'Entradas historicas de inventario',
-    },
-    {
-      icon: Package2,
-      label: 'Stock remanente',
-      value: formatGrams(totalRemainingGrams),
-      helper: 'Inventario util disponible',
-    },
-    {
-      icon: CircleDollarSign,
-      label: 'Valor remanente',
-      value: formatCompactMoney(remainingValue),
-      helper: 'Costo estimado aun en stock',
-    },
-    {
-      icon: Search,
-      label: 'Agotados',
-      value: depletedLots.toString(),
-      helper: 'Lotes sin saldo',
-    },
+    { icon: Boxes, label: 'Lotes', value: inventoryLots.length.toString(), helper: 'Entradas historicas de inventario' },
+    { icon: Package2, label: 'Stock remanente', value: formatGrams(totalRemainingGrams), helper: 'Inventario util disponible' },
+    { icon: CircleDollarSign, label: 'Valor remanente', value: formatCompactMoney(remainingValue), helper: 'Costo estimado aun en stock' },
+    { icon: Search, label: 'Agotados', value: depletedLots.toString(), helper: 'Lotes sin saldo' },
   ]
 
   return (
@@ -781,47 +779,76 @@ function LotsSection({ inventoryLots }: Pick<CatalogWorkspaceProps, 'inventoryLo
           {filteredLots.length === 0 ? (
             <EmptyState label="No hay lotes para mostrar con este filtro." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px] text-left text-sm">
-                <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium sm:px-5">Fecha</th>
-                    <th className="px-4 py-3 font-medium">Lote</th>
-                    <th className="px-4 py-3 font-medium">SKU</th>
-                    <th className="px-4 py-3 font-medium">Proveedor</th>
-                    <th className="px-4 py-3 font-medium">Cajas</th>
-                    <th className="px-4 py-3 font-medium">Total</th>
-                    <th className="px-4 py-3 font-medium">Restante</th>
-                    <th className="px-4 py-3 font-medium">Valor remanente</th>
-                    <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLots.map((lot) => {
-                    const remainingGrams = toNumber(lot.remaining_grams)
-                    const status = inventoryStatus(remainingGrams)
+            <>
+              <MobileCards>
+                {filteredLots.map((lot) => {
+                  const status = inventoryStatus(toNumber(lot.remaining_grams))
+                  return (
+                    <MobileCard key={lot.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{lot.lot_code}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {lot.product_sku} · {formatDateLabel(lot.purchased_at)}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={status.className}>
+                          {status.label}
+                        </Badge>
+                      </div>
+                      <dl className="mt-4 grid gap-2 text-sm">
+                        <FieldRow label="Proveedor" value={lot.supplier_name || 'Sin proveedor'} />
+                        <FieldRow label="Cajas" value={<span className="tabular-nums">{lot.boxes_qty}</span>} />
+                        <FieldRow label="Total" value={<span className="tabular-nums">{formatGrams(lot.total_grams)}</span>} />
+                        <FieldRow label="Restante" value={<span className="font-medium tabular-nums">{formatGrams(lot.remaining_grams)}</span>} />
+                        <FieldRow label="Valor" value={<span className="font-medium tabular-nums">{formatMoney(remainingLotValue(lot))}</span>} />
+                      </dl>
+                    </MobileCard>
+                  )
+                })}
+              </MobileCards>
 
-                    return (
-                      <tr key={lot.id} className="border-t">
-                        <td className="px-4 py-4 text-muted-foreground sm:px-5">{formatDateLabel(lot.purchased_at)}</td>
-                        <td className="px-4 py-4 font-medium">{lot.lot_code}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{lot.product_sku}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{lot.supplier_name || 'Sin proveedor'}</td>
-                        <td className="px-4 py-4 tabular-nums">{lot.boxes_qty}</td>
-                        <td className="px-4 py-4 tabular-nums">{formatGrams(lot.total_grams)}</td>
-                        <td className="px-4 py-4 font-medium tabular-nums">{formatGrams(lot.remaining_grams)}</td>
-                        <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(remainingLotValue(lot))}</td>
-                        <td className="px-4 py-4 sm:px-5">
-                          <Badge variant="outline" className={status.className}>
-                            {status.label}
-                          </Badge>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+              <DesktopTable>
+                <table className="w-full min-w-[1180px] text-left text-sm">
+                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium sm:px-5">Fecha</th>
+                      <th className="px-4 py-3 font-medium">Lote</th>
+                      <th className="px-4 py-3 font-medium">SKU</th>
+                      <th className="px-4 py-3 font-medium">Proveedor</th>
+                      <th className="px-4 py-3 font-medium">Cajas</th>
+                      <th className="px-4 py-3 font-medium">Total</th>
+                      <th className="px-4 py-3 font-medium">Restante</th>
+                      <th className="px-4 py-3 font-medium">Valor remanente</th>
+                      <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLots.map((lot) => {
+                      const status = inventoryStatus(toNumber(lot.remaining_grams))
+
+                      return (
+                        <tr key={lot.id} className="border-t">
+                          <td className="px-4 py-4 text-muted-foreground sm:px-5">{formatDateLabel(lot.purchased_at)}</td>
+                          <td className="px-4 py-4 font-medium">{lot.lot_code}</td>
+                          <td className="px-4 py-4 text-muted-foreground">{lot.product_sku}</td>
+                          <td className="px-4 py-4 text-muted-foreground">{lot.supplier_name || 'Sin proveedor'}</td>
+                          <td className="px-4 py-4 tabular-nums">{lot.boxes_qty}</td>
+                          <td className="px-4 py-4 tabular-nums">{formatGrams(lot.total_grams)}</td>
+                          <td className="px-4 py-4 font-medium tabular-nums">{formatGrams(lot.remaining_grams)}</td>
+                          <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(remainingLotValue(lot))}</td>
+                          <td className="px-4 py-4 sm:px-5">
+                            <Badge variant="outline" className={status.className}>
+                              {status.label}
+                            </Badge>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </DesktopTable>
+            </>
           )}
         </CardContent>
       </Card>
