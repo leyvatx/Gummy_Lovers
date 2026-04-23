@@ -266,10 +266,6 @@ export function getCurrentUser() {
   return request<AuthUser>('/api/auth/me/')
 }
 
-export function getAdminProfiles() {
-  return request<AuthUser[]>('/api/auth/admins/')
-}
-
 export function getFinancialSnapshot() {
   return request<FinancialSnapshot>('/api/dashboard/financial/')
 }

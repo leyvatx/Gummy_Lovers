@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, HandCoins, Menu, PackageCheck, RefreshCw, Scale, WalletCards } from 'lucide-react'
 
-import { AdminProfilesCard } from '@/components/dashboard/admin-profiles-card'
 import { CustomerTable } from '@/components/dashboard/customer-table'
 import { MetricCard } from '@/components/dashboard/metric-card'
 import { DirectSaleAction } from '@/components/forms/direct-sale-action'
@@ -16,7 +15,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserMenu } from '@/components/user-menu'
 import {
-  getAdminProfiles,
   getCurrentUser,
   getCustomerPrices,
   getCustomers,
@@ -131,7 +129,6 @@ function App() {
   const [products, setProducts] = useState<Product[]>([])
   const [customerPrices, setCustomerPrices] = useState<CustomerPrice[]>([])
   const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>([])
-  const [adminProfiles, setAdminProfiles] = useState<AuthUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
@@ -145,7 +142,6 @@ function App() {
     setProducts([])
     setCustomerPrices([])
     setInventoryLots([])
-    setAdminProfiles([])
     setIsLoading(false)
     setError('')
   }, [])
@@ -237,7 +233,7 @@ function App() {
   }, [])
 
   const fetchWorkspaceData = useCallback(async () => {
-    const [financialData, customerData, supplierData, productData, customerPriceData, inventoryLotData, adminData] =
+    const [financialData, customerData, supplierData, productData, customerPriceData, inventoryLotData] =
       await Promise.all([
         getFinancialSnapshot(),
         getCustomers(),
@@ -245,11 +241,9 @@ function App() {
         getProducts(),
         getCustomerPrices(),
         getInventoryLots(),
-        getAdminProfiles(),
       ])
 
     return {
-      adminData,
       customerData,
       customerPriceData,
       financialData,
@@ -278,7 +272,6 @@ function App() {
 
       try {
         const {
-          adminData,
           customerData,
           customerPriceData,
           financialData,
@@ -293,7 +286,6 @@ function App() {
         setProducts(productData)
         setCustomerPrices(customerPriceData)
         setInventoryLots(inventoryLotData)
-        setAdminProfiles(adminData)
         setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
         setError('')
       } catch (refreshError) {
@@ -581,8 +573,6 @@ function App() {
                         </div>
                       </CardContent>
                     </Card>
-
-                    <AdminProfilesCard admins={adminProfiles} />
                   </aside>
                 </section>
               </div>
