@@ -77,7 +77,37 @@ export type AuthUser = {
   is_superuser: boolean
 }
 
+type AuthPayload = {
+  token: string
+  user: AuthUser
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const AUTH_TOKEN_STORAGE_KEY = 'gummy-auth-token'
+
+function getStoredAuthToken() {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ?? ''
+}
+
+function setStoredAuthToken(token: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+}
+
+function clearStoredAuthToken() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+}
 
 function normalizeList<T>(payload: T[] | { results?: T[] }) {
   if (Array.isArray(payload)) {
@@ -88,10 +118,11 @@ function normalizeList<T>(payload: T[] | { results?: T[] }) {
 }
 
 async function request<T>(path: string, options: RequestInit = {}) {
+  const authToken = getStoredAuthToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Token ${authToken}` } : {}),
       ...options.headers,
     },
     ...options,
@@ -101,6 +132,10 @@ async function request<T>(path: string, options: RequestInit = {}) {
   const payload = contentType.includes('application/json') ? await response.json() : null
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearStoredAuthToken()
+    }
+
     const message =
       typeof payload?.detail === 'string'
         ? payload.detail
@@ -111,20 +146,33 @@ async function request<T>(path: string, options: RequestInit = {}) {
   return payload as T
 }
 
-export function login(payload: { email: string; password: string }) {
-  return request<AuthUser>('/api/auth/login/', {
+export async function login(payload: { email: string; password: string }) {
+  const authPayload = await request<AuthPayload>('/api/auth/login/', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+
+  setStoredAuthToken(authPayload.token)
+  return authPayload.user
 }
 
-export function logout() {
-  return request<void>('/api/auth/logout/', {
-    method: 'POST',
-  })
+export async function logout() {
+  try {
+    if (getStoredAuthToken()) {
+      await request<void>('/api/auth/logout/', {
+        method: 'POST',
+      })
+    }
+  } finally {
+    clearStoredAuthToken()
+  }
 }
 
 export function getCurrentUser() {
+  if (!getStoredAuthToken()) {
+    throw { message: 'Sesión no iniciada.', status: 401 } satisfies ApiError
+  }
+
   return request<AuthUser>('/api/auth/me/')
 }
 
@@ -196,6 +244,10 @@ export function createDirectSale(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+export function hasStoredAuthToken() {
+  return Boolean(getStoredAuthToken())
 }
 
 export function toNumber(value: MoneyValue) {

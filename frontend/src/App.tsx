@@ -19,6 +19,7 @@ import {
   getCustomerBalances,
   getFinancialSnapshot,
   getProducts,
+  hasStoredAuthToken,
   logout as apiLogout,
   type ApiError,
   type AuthUser,
@@ -68,7 +69,7 @@ function sameUser(currentUser: AuthUser, nextUser: AuthUser) {
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isAuthLoading, setIsAuthLoading] = useState(hasStoredAuthToken)
   const [snapshot, setSnapshot] = useState<FinancialSnapshot>(emptySnapshot)
   const [customers, setCustomers] = useState<CustomerBalance[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -78,12 +79,26 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState('')
   const isRefreshingRef = useRef(false)
 
+  const clearAuthState = useCallback(() => {
+    setUser(null)
+    setSnapshot(emptySnapshot)
+    setCustomers([])
+    setProducts([])
+    setAdminProfiles([])
+    setIsLoading(false)
+    setError('')
+  }, [])
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('gummy-theme', theme)
   }, [theme])
 
   useEffect(() => {
+    if (!hasStoredAuthToken()) {
+      return
+    }
+
     let isMounted = true
 
     getCurrentUser()
@@ -94,7 +109,7 @@ function App() {
       })
       .catch(() => {
         if (isMounted) {
-          setUser(null)
+          clearAuthState()
         }
       })
       .finally(() => {
@@ -106,7 +121,7 @@ function App() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [clearAuthState])
 
   const toggleTheme = useCallback(() => {
     setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'))
@@ -123,44 +138,47 @@ function App() {
     return { financialData, customerData, productData, adminData }
   }, [])
 
-  const refreshData = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
-    if (!user) {
-      return
-    }
-
-    if (isRefreshingRef.current) {
-      return
-    }
-
-    isRefreshingRef.current = true
-
-    if (!silent) {
-      setIsLoading(true)
-      setError('')
-    }
-
-    try {
-      const { financialData, customerData, productData, adminData } = await fetchDashboardData()
-
-      setSnapshot(financialData)
-      setCustomers(customerData)
-      setProducts(productData)
-      setAdminProfiles(adminData)
-      setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
-      setError('')
-    } catch (refreshError) {
-      setError(
-        isAuthError(refreshError)
-          ? 'Tu sesión ya no está activa. Vuelve a iniciar sesión para sincronizar.'
-          : 'No se pudo sincronizar con la API.',
-      )
-    } finally {
-      isRefreshingRef.current = false
-      if (!silent) {
-        setIsLoading(false)
+  const refreshData = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (!user) {
+        return
       }
-    }
-  }, [fetchDashboardData, user])
+
+      if (isRefreshingRef.current) {
+        return
+      }
+
+      isRefreshingRef.current = true
+
+      if (!silent) {
+        setIsLoading(true)
+        setError('')
+      }
+
+      try {
+        const { financialData, customerData, productData, adminData } = await fetchDashboardData()
+
+        setSnapshot(financialData)
+        setCustomers(customerData)
+        setProducts(productData)
+        setAdminProfiles(adminData)
+        setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
+        setError('')
+      } catch (refreshError) {
+        if (isAuthError(refreshError)) {
+          clearAuthState()
+        } else {
+          setError('No se pudo sincronizar con la API.')
+        }
+      } finally {
+        isRefreshingRef.current = false
+        if (!silent) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [clearAuthState, fetchDashboardData, user],
+  )
 
   useEffect(() => {
     if (!user) {
@@ -213,7 +231,7 @@ function App() {
         })
       } catch (keepAliveError) {
         if (isAuthError(keepAliveError)) {
-          setError('Tu sesión ya no está activa. Vuelve a iniciar sesión para sincronizar.')
+          clearAuthState()
         }
       }
     }
@@ -223,7 +241,7 @@ function App() {
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [user])
+  }, [clearAuthState, user])
 
   const handleLogin = useCallback((loggedUser: AuthUser) => {
     setUser(loggedUser)
@@ -232,13 +250,12 @@ function App() {
   }, [])
 
   const handleLogout = useCallback(async () => {
-    await apiLogout()
-    setUser(null)
-    setSnapshot(emptySnapshot)
-    setCustomers([])
-    setProducts([])
-    setAdminProfiles([])
-  }, [])
+    try {
+      await apiLogout()
+    } finally {
+      clearAuthState()
+    }
+  }, [clearAuthState])
 
   const metrics = useMemo(
     () => [

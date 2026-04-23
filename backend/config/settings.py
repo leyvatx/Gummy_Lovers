@@ -11,16 +11,26 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-gummy-lovers-secret-k
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 USE_HTTPS = os.environ.get("DJANGO_USE_HTTPS", "0") == "1"
 
+
+def env_list(name, default=""):
+    return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com").split(",")
-    if host.strip()
+    for host in env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com")
 ]
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "https://*.onrender.com").split(",")
-    if origin.strip()
+    for origin in env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "https://*.onrender.com")
 ]
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
+)
+CORS_ALLOWED_ORIGIN_REGEXES = env_list(
+    "CORS_ALLOWED_ORIGIN_REGEXES",
+    r"^https://.*\.vercel\.app$,^https://.*\.netlify\.app$",
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -29,13 +39,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "rest_framework",
+    "rest_framework.authtoken",
     "apps.core",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -124,7 +137,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "apps.core.authentication.CsrfExemptSessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

@@ -264,14 +264,28 @@ class AuthAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn("token", response.data)
+        self.assertEqual(response.data["user"]["username"], "efrain.leyva")
+
+    def test_me_allows_token_authentication(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {"email": "efrain@gummylovers.local", "password": "testpass123"},
+            format="json",
+        )
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {login_response.data['token']}")
+        response = self.client.get("/api/auth/me/")
+
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["username"], "efrain.leyva")
 
     def test_dashboard_requires_authentication(self):
         response = self.client.get("/api/dashboard/financial/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_admin_profiles_are_protected(self):
         response = self.client.get("/api/auth/admins/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
