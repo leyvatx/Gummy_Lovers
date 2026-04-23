@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import {
   toNumber,
   type Customer,
-  type CustomerPrice,
   type InventoryLot,
   type Product,
   type Supplier,
@@ -18,7 +17,6 @@ import { formatCompactMoney, formatGrams, formatMoney } from '@/lib/format'
 type CatalogWorkspaceProps = {
   section: Exclude<AppSection, 'dashboard'>
   customers: Customer[]
-  customerPrices: CustomerPrice[]
   inventoryLots: InventoryLot[]
   products: Product[]
   suppliers: Supplier[]
@@ -640,99 +638,6 @@ function CustomersSection({ customers }: Pick<CatalogWorkspaceProps, 'customers'
   )
 }
 
-function PricesSection({ customerPrices }: Pick<CatalogWorkspaceProps, 'customerPrices'>) {
-  const [query, setQuery] = useState('')
-  const normalizedQuery = normalizeSearch(query)
-  const filteredPrices = useMemo(
-    () => customerPrices.filter((price) => matchesQuery(normalizedQuery, [price.customer_name, price.product_sku, price.portion_name])),
-    [customerPrices, normalizedQuery],
-  )
-
-  const averagePrice = customerPrices.length > 0 ? customerPrices.reduce((sum, price) => sum + toNumber(price.unit_price), 0) / customerPrices.length : 0
-
-  const metrics: MetricItem[] = [
-    { icon: Wallet2, label: 'Precios', value: customerPrices.length.toString(), helper: 'Acuerdos comerciales activos' },
-    { icon: Users, label: 'Clientes cubiertos', value: new Set(customerPrices.map((price) => price.customer)).size.toString(), helper: 'Clientes con precio asignado' },
-    { icon: Package2, label: 'SKUs cubiertos', value: new Set(customerPrices.map((price) => price.product)).size.toString(), helper: 'Productos con tarifa definida' },
-    { icon: CircleDollarSign, label: 'Promedio', value: formatMoney(averagePrice), helper: 'Precio unitario medio' },
-  ]
-
-  return (
-    <div className="grid gap-5">
-      <SectionMetrics items={metrics} />
-      <SectionToolbar
-        countLabel={`${filteredPrices.length} de ${customerPrices.length} precio(s)`}
-        placeholder="Buscar cliente, SKU o porcion"
-        query={query}
-        onQueryChange={setQuery}
-      />
-
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle>Precios</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {filteredPrices.length === 0 ? (
-            <EmptyState label="No hay precios para mostrar con este filtro." />
-          ) : (
-            <>
-              <MobileCards>
-                {filteredPrices.map((price) => (
-                  <MobileCard key={price.id}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold">{price.customer_name}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {price.product_sku} · {price.portion_name}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className={price.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
-                        {price.active ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </div>
-                    <dl className="mt-4 grid gap-2 text-sm">
-                      <FieldRow label="Precio" value={<span className="font-semibold tabular-nums">{formatMoney(price.unit_price)}</span>} />
-                    </dl>
-                  </MobileCard>
-                ))}
-              </MobileCards>
-
-              <DesktopTable>
-                <table className="w-full min-w-[880px] text-left text-sm">
-                  <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-medium sm:px-5">Cliente</th>
-                      <th className="px-4 py-3 font-medium">SKU</th>
-                      <th className="px-4 py-3 font-medium">Porcion</th>
-                      <th className="px-4 py-3 font-medium">Precio</th>
-                      <th className="px-4 py-3 font-medium sm:px-5">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPrices.map((price) => (
-                      <tr key={price.id} className="border-t">
-                        <td className="px-4 py-4 font-medium sm:px-5">{price.customer_name}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{price.product_sku}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{price.portion_name}</td>
-                        <td className="px-4 py-4 font-medium tabular-nums">{formatMoney(price.unit_price)}</td>
-                        <td className="px-4 py-4 sm:px-5">
-                          <Badge variant="outline" className={price.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
-                            {price.active ? 'Activo' : 'Inactivo'}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </DesktopTable>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
 function LotsSection({ inventoryLots }: Pick<CatalogWorkspaceProps, 'inventoryLots'>) {
   const [query, setQuery] = useState('')
 
@@ -866,8 +771,6 @@ function CatalogWorkspace(props: CatalogWorkspaceProps) {
       return <PortionsSection products={props.products} />
     case 'customers':
       return <CustomersSection customers={props.customers} />
-    case 'prices':
-      return <PricesSection customerPrices={props.customerPrices} />
     case 'lots':
       return <LotsSection inventoryLots={props.inventoryLots} />
   }

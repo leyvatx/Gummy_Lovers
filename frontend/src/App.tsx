@@ -5,7 +5,6 @@ import { CustomerTable } from '@/components/dashboard/customer-table'
 import { MetricCard } from '@/components/dashboard/metric-card'
 import {
   CustomerAction,
-  CustomerPriceAction,
   InventoryLotAction,
   PortionAction,
   ProductAction,
@@ -23,7 +22,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserMenu } from '@/components/user-menu'
 import {
   getCurrentUser,
-  getCustomerPrices,
   getCustomers,
   getFinancialSnapshot,
   getInventoryLots,
@@ -34,7 +32,6 @@ import {
   type ApiError,
   type AuthUser,
   type Customer,
-  type CustomerPrice,
   type FinancialSnapshot,
   type InventoryLot,
   type Product,
@@ -73,9 +70,6 @@ const sectionMeta: Record<AppSection, { title: string }> = {
   },
   customers: {
     title: 'Clientes',
-  },
-  prices: {
-    title: 'Precios',
   },
   lots: {
     title: 'Lotes',
@@ -134,7 +128,6 @@ function App() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<Product[]>([])
-  const [customerPrices, setCustomerPrices] = useState<CustomerPrice[]>([])
   const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -147,7 +140,6 @@ function App() {
     setCustomers([])
     setSuppliers([])
     setProducts([])
-    setCustomerPrices([])
     setInventoryLots([])
     setIsLoading(false)
     setError('')
@@ -240,19 +232,17 @@ function App() {
   }, [])
 
   const fetchWorkspaceData = useCallback(async () => {
-    const [financialData, customerData, supplierData, productData, customerPriceData, inventoryLotData] =
+    const [financialData, customerData, supplierData, productData, inventoryLotData] =
       await Promise.all([
         getFinancialSnapshot(),
         getCustomers(),
         getSuppliers(),
         getProducts(),
-        getCustomerPrices(),
         getInventoryLots(),
       ])
 
     return {
       customerData,
-      customerPriceData,
       financialData,
       inventoryLotData,
       productData,
@@ -280,7 +270,6 @@ function App() {
       try {
         const {
           customerData,
-          customerPriceData,
           financialData,
           inventoryLotData,
           productData,
@@ -291,7 +280,6 @@ function App() {
         setCustomers(customerData)
         setSuppliers(supplierData)
         setProducts(productData)
-        setCustomerPrices(customerPriceData)
         setInventoryLots(inventoryLotData)
         setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
         setError('')
@@ -454,8 +442,6 @@ function App() {
         return <PortionAction products={products} onCreated={refreshData} />
       case 'customers':
         return <CustomerAction onCreated={refreshData} />
-      case 'prices':
-        return <CustomerPriceAction customers={customers} products={products} onCreated={refreshData} />
       case 'lots':
         return <InventoryLotAction user={user} products={products} suppliers={suppliers} onCreated={refreshData} />
     }
@@ -605,7 +591,6 @@ function App() {
               <CatalogWorkspace
                 section={currentSection}
                 customers={customers}
-                customerPrices={customerPrices}
                 inventoryLots={inventoryLots}
                 products={products}
                 suppliers={suppliers}

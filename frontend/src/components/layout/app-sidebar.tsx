@@ -8,7 +8,6 @@ import {
   Tags,
   Truck,
   UserRoundPlus,
-  Wallet2,
   X,
 } from 'lucide-react'
 
@@ -21,7 +20,6 @@ export type AppSection =
   | 'products'
   | 'portions'
   | 'customers'
-  | 'prices'
   | 'lots'
 
 type SidebarSection = {
@@ -71,12 +69,6 @@ const sections: SidebarSection[] = [
     label: 'Clientes',
     helper: 'Mayoristas y saldo',
     icon: UserRoundPlus,
-  },
-  {
-    key: 'prices',
-    label: 'Precios',
-    helper: 'Tarifas por cliente',
-    icon: Wallet2,
   },
   {
     key: 'lots',

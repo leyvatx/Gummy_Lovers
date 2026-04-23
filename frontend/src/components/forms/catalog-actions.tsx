@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { type FormEvent, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 
@@ -66,14 +67,23 @@ function errorMessage(error: unknown, fallbackMessage: string) {
   return (error as ApiError)?.message ?? fallbackMessage
 }
 
-function CreateTrigger({ label }: { label: string }) {
-  return (
-    <Button variant="outline" size="icon" className="size-10 rounded-2xl" aria-label={label} title={label}>
+const CreateTrigger = React.forwardRef<HTMLButtonElement, React.ComponentPropsWithoutRef<typeof Button> & { label: string }>(
+  ({ label, ...props }, ref) => (
+    <Button
+      ref={ref}
+      variant="outline"
+      size="icon"
+      className="size-10 rounded-2xl"
+      aria-label={label}
+      title={label}
+      {...props}
+    >
       <Plus className="size-4" />
       <span className="sr-only">{label}</span>
     </Button>
-  )
-}
+  ),
+)
+CreateTrigger.displayName = 'CreateTrigger'
 
 function SupplierAction({ onCreated }: SupplierActionProps) {
   const [open, setOpen] = useState(false)
