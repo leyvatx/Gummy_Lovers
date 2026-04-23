@@ -1,19 +1,10 @@
 import { useMemo } from 'react'
 
-import {
-  CustomerAction,
-  CustomerPriceAction,
-  InventoryLotAction,
-  PortionAction,
-  ProductAction,
-  SupplierAction,
-} from '@/components/forms/catalog-actions'
 import type { AppSection } from '@/components/layout/app-sidebar'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   toNumber,
-  type AuthUser,
   type Customer,
   type CustomerPrice,
   type InventoryLot,
@@ -24,42 +15,33 @@ import { formatGrams, formatMoney } from '@/lib/format'
 
 type CatalogWorkspaceProps = {
   section: Exclude<AppSection, 'dashboard'>
-  user: AuthUser
   customers: Customer[]
   customerPrices: CustomerPrice[]
   inventoryLots: InventoryLot[]
   products: Product[]
   suppliers: Supplier[]
-  onRefresh: () => Promise<void>
 }
 
 function HeaderAction({
-  action,
   countLabel,
 }: {
-  action: React.ReactNode
   countLabel: string
 }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+    <section className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{countLabel}</Badge>
       </div>
-      <div>{action}</div>
     </section>
   )
 }
 
 function SuppliersSection({
   suppliers,
-  onRefresh,
-}: Pick<CatalogWorkspaceProps, 'suppliers' | 'onRefresh'>) {
+}: Pick<CatalogWorkspaceProps, 'suppliers'>) {
   return (
     <div className="grid gap-5">
-      <HeaderAction
-        countLabel={`${suppliers.length} registro(s)`}
-        action={<SupplierAction onCreated={onRefresh} />}
-      />
+      <HeaderAction countLabel={`${suppliers.length} registro(s)`} />
 
       <Card>
         <CardHeader className="border-b">
@@ -98,14 +80,10 @@ function SuppliersSection({
 
 function ProductsSection({
   products,
-  onRefresh,
-}: Pick<CatalogWorkspaceProps, 'products' | 'onRefresh'>) {
+}: Pick<CatalogWorkspaceProps, 'products'>) {
   return (
     <div className="grid gap-5">
-      <HeaderAction
-        countLabel={`${products.length} activo(s)`}
-        action={<ProductAction onCreated={onRefresh} />}
-      />
+      <HeaderAction countLabel={`${products.length} activo(s)`} />
 
       <Card>
         <CardHeader className="border-b">
@@ -159,8 +137,7 @@ function ProductsSection({
 
 function PortionsSection({
   products,
-  onRefresh,
-}: Pick<CatalogWorkspaceProps, 'products' | 'onRefresh'>) {
+}: Pick<CatalogWorkspaceProps, 'products'>) {
   const portions = useMemo(
     () =>
       products.flatMap((product) =>
@@ -174,10 +151,7 @@ function PortionsSection({
 
   return (
     <div className="grid gap-5">
-      <HeaderAction
-        countLabel={`${portions.length} registro(s)`}
-        action={<PortionAction products={products} onCreated={onRefresh} />}
-      />
+      <HeaderAction countLabel={`${portions.length} registro(s)`} />
 
       <Card>
         <CardHeader className="border-b">
@@ -218,14 +192,10 @@ function PortionsSection({
 
 function CustomersSection({
   customers,
-  onRefresh,
-}: Pick<CatalogWorkspaceProps, 'customers' | 'onRefresh'>) {
+}: Pick<CatalogWorkspaceProps, 'customers'>) {
   return (
     <div className="grid gap-5">
-      <HeaderAction
-        countLabel={`${customers.length} registro(s)`}
-        action={<CustomerAction onCreated={onRefresh} />}
-      />
+      <HeaderAction countLabel={`${customers.length} registro(s)`} />
 
       <Card>
         <CardHeader className="border-b">
@@ -269,17 +239,11 @@ function CustomersSection({
 }
 
 function PricesSection({
-  customers,
   customerPrices,
-  products,
-  onRefresh,
-}: Pick<CatalogWorkspaceProps, 'customers' | 'customerPrices' | 'products' | 'onRefresh'>) {
+}: Pick<CatalogWorkspaceProps, 'customerPrices'>) {
   return (
     <div className="grid gap-5">
-      <HeaderAction
-        countLabel={`${customerPrices.length} registro(s)`}
-        action={<CustomerPriceAction customers={customers} products={products} onCreated={onRefresh} />}
-      />
+      <HeaderAction countLabel={`${customerPrices.length} registro(s)`} />
 
       <Card>
         <CardHeader className="border-b">
@@ -320,11 +284,7 @@ function PricesSection({
 
 function LotsSection({
   inventoryLots,
-  onRefresh,
-  products,
-  suppliers,
-  user,
-}: Pick<CatalogWorkspaceProps, 'inventoryLots' | 'onRefresh' | 'products' | 'suppliers' | 'user'>) {
+}: Pick<CatalogWorkspaceProps, 'inventoryLots'>) {
   const sortedLots = useMemo(
     () =>
       [...inventoryLots].sort((left, right) => {
@@ -335,10 +295,7 @@ function LotsSection({
 
   return (
     <div className="grid gap-5">
-      <HeaderAction
-        countLabel={`${sortedLots.length} registro(s)`}
-        action={<InventoryLotAction user={user} products={products} suppliers={suppliers} onCreated={onRefresh} />}
-      />
+      <HeaderAction countLabel={`${sortedLots.length} registro(s)`} />
 
       <Card>
         <CardHeader className="border-b">
@@ -402,32 +359,17 @@ function LotsSection({
 function CatalogWorkspace(props: CatalogWorkspaceProps) {
   switch (props.section) {
     case 'suppliers':
-      return <SuppliersSection suppliers={props.suppliers} onRefresh={props.onRefresh} />
+      return <SuppliersSection suppliers={props.suppliers} />
     case 'products':
-      return <ProductsSection products={props.products} onRefresh={props.onRefresh} />
+      return <ProductsSection products={props.products} />
     case 'portions':
-      return <PortionsSection products={props.products} onRefresh={props.onRefresh} />
+      return <PortionsSection products={props.products} />
     case 'customers':
-      return <CustomersSection customers={props.customers} onRefresh={props.onRefresh} />
+      return <CustomersSection customers={props.customers} />
     case 'prices':
-      return (
-        <PricesSection
-          customers={props.customers}
-          customerPrices={props.customerPrices}
-          products={props.products}
-          onRefresh={props.onRefresh}
-        />
-      )
+      return <PricesSection customerPrices={props.customerPrices} />
     case 'lots':
-      return (
-        <LotsSection
-          inventoryLots={props.inventoryLots}
-          onRefresh={props.onRefresh}
-          products={props.products}
-          suppliers={props.suppliers}
-          user={props.user}
-        />
-      )
+      return <LotsSection inventoryLots={props.inventoryLots} />
   }
 }
 

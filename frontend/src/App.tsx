@@ -3,6 +3,14 @@ import { Banknote, HandCoins, Menu, PackageCheck, RefreshCw, Scale, WalletCards 
 
 import { CustomerTable } from '@/components/dashboard/customer-table'
 import { MetricCard } from '@/components/dashboard/metric-card'
+import {
+  CustomerAction,
+  CustomerPriceAction,
+  InventoryLotAction,
+  PortionAction,
+  ProductAction,
+  SupplierAction,
+} from '@/components/forms/catalog-actions'
 import { DirectSaleAction } from '@/components/forms/direct-sale-action'
 import { ExpenseAction } from '@/components/forms/expense-action'
 import { PaymentAction } from '@/components/forms/payment-action'
@@ -428,6 +436,31 @@ function App() {
     return <LoginScreen theme={theme} onToggleTheme={toggleTheme} onLogin={handleLogin} />
   }
 
+  const topbarAction = (() => {
+    switch (currentSection) {
+      case 'dashboard':
+        return (
+          <>
+            <DirectSaleAction user={user} products={products} onCreated={refreshData} />
+            <ExpenseAction user={user} onCreated={refreshData} />
+            <PaymentAction customers={customers} onCreated={refreshData} />
+          </>
+        )
+      case 'suppliers':
+        return <SupplierAction onCreated={refreshData} />
+      case 'products':
+        return <ProductAction onCreated={refreshData} />
+      case 'portions':
+        return <PortionAction products={products} onCreated={refreshData} />
+      case 'customers':
+        return <CustomerAction onCreated={refreshData} />
+      case 'prices':
+        return <CustomerPriceAction customers={customers} products={products} onCreated={refreshData} />
+      case 'lots':
+        return <InventoryLotAction user={user} products={products} suppliers={suppliers} onCreated={refreshData} />
+    }
+  })()
+
   const currentMeta = sectionMeta[currentSection]
 
   function handleSectionSelect(section: AppSection) {
@@ -483,13 +516,7 @@ function App() {
               </div>
 
               <div className="page-topbar-actions flex min-w-0 flex-wrap items-center justify-start gap-2 sm:justify-end">
-                {currentSection === 'dashboard' ? (
-                  <>
-                    <DirectSaleAction user={user} products={products} onCreated={refreshData} />
-                    <ExpenseAction user={user} onCreated={refreshData} />
-                    <PaymentAction customers={customers} onCreated={refreshData} />
-                  </>
-                ) : null}
+                {topbarAction}
                 {lastUpdated ? <span className="hidden text-xs text-muted-foreground xl:inline">Actualizado {lastUpdated}</span> : null}
                 <Button variant="ghost" size="icon" onClick={() => void refreshData()} disabled={isLoading}>
                   <RefreshCw className={isLoading ? 'animate-spin' : ''} />
@@ -577,13 +604,11 @@ function App() {
             ) : (
               <CatalogWorkspace
                 section={currentSection}
-                user={user}
                 customers={customers}
                 customerPrices={customerPrices}
                 inventoryLots={inventoryLots}
                 products={products}
                 suppliers={suppliers}
-                onRefresh={refreshData}
               />
             )}
           </div>
