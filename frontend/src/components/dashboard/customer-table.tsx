@@ -3,13 +3,13 @@ import { Search } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import type { CustomerBalance } from '@/lib/api'
+import type { Customer } from '@/lib/api'
 import { toNumber } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 type CustomerTableProps = {
-  customers: CustomerBalance[]
+  customers: Customer[]
 }
 
 function CustomerTable({ customers }: CustomerTableProps) {

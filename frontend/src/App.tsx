@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Banknote, HandCoins, PackageCheck, RefreshCw, Scale, WalletCards } from 'lucide-react'
 
-import { CustomerTable } from '@/components/dashboard/customer-table'
 import { AdminProfilesCard } from '@/components/dashboard/admin-profiles-card'
+import { CustomerTable } from '@/components/dashboard/customer-table'
 import { MetricCard } from '@/components/dashboard/metric-card'
+import { CatalogWorkspace } from '@/components/management/catalog-workspace'
 import { DirectSaleAction } from '@/components/forms/direct-sale-action'
 import { ExpenseAction } from '@/components/forms/expense-action'
 import { PaymentAction } from '@/components/forms/payment-action'
+import { WholesaleSaleAction } from '@/components/forms/wholesale-sale-action'
 import { LoginScreen } from '@/components/login-screen'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Badge } from '@/components/ui/badge'
@@ -14,18 +16,24 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserMenu } from '@/components/user-menu'
 import {
-  getCurrentUser,
   getAdminProfiles,
-  getCustomerBalances,
+  getCurrentUser,
+  getCustomerPrices,
+  getCustomers,
   getFinancialSnapshot,
+  getInventoryLots,
   getProducts,
+  getSuppliers,
   hasStoredAuthToken,
   logout as apiLogout,
   type ApiError,
   type AuthUser,
-  type CustomerBalance,
+  type Customer,
+  type CustomerPrice,
   type FinancialSnapshot,
+  type InventoryLot,
   type Product,
+  type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 
@@ -68,11 +76,15 @@ function sameUser(currentUser: AuthUser, nextUser: AuthUser) {
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
+  const [workspaceView, setWorkspaceView] = useState<'dashboard' | 'catalogs'>('dashboard')
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(hasStoredAuthToken)
   const [snapshot, setSnapshot] = useState<FinancialSnapshot>(emptySnapshot)
-  const [customers, setCustomers] = useState<CustomerBalance[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [customerPrices, setCustomerPrices] = useState<CustomerPrice[]>([])
+  const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>([])
   const [adminProfiles, setAdminProfiles] = useState<AuthUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -83,7 +95,10 @@ function App() {
     setUser(null)
     setSnapshot(emptySnapshot)
     setCustomers([])
+    setSuppliers([])
     setProducts([])
+    setCustomerPrices([])
+    setInventoryLots([])
     setAdminProfiles([])
     setIsLoading(false)
     setError('')
@@ -127,15 +142,27 @@ function App() {
     setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'))
   }, [])
 
-  const fetchDashboardData = useCallback(async () => {
-    const [financialData, customerData, productData, adminData] = await Promise.all([
-      getFinancialSnapshot(),
-      getCustomerBalances(),
-      getProducts(),
-      getAdminProfiles(),
-    ])
+  const fetchWorkspaceData = useCallback(async () => {
+    const [financialData, customerData, supplierData, productData, customerPriceData, inventoryLotData, adminData] =
+      await Promise.all([
+        getFinancialSnapshot(),
+        getCustomers(),
+        getSuppliers(),
+        getProducts(),
+        getCustomerPrices(),
+        getInventoryLots(),
+        getAdminProfiles(),
+      ])
 
-    return { financialData, customerData, productData, adminData }
+    return {
+      adminData,
+      customerData,
+      customerPriceData,
+      financialData,
+      inventoryLotData,
+      productData,
+      supplierData,
+    }
   }, [])
 
   const refreshData = useCallback(
@@ -156,11 +183,22 @@ function App() {
       }
 
       try {
-        const { financialData, customerData, productData, adminData } = await fetchDashboardData()
+        const {
+          adminData,
+          customerData,
+          customerPriceData,
+          financialData,
+          inventoryLotData,
+          productData,
+          supplierData,
+        } = await fetchWorkspaceData()
 
         setSnapshot(financialData)
         setCustomers(customerData)
+        setSuppliers(supplierData)
         setProducts(productData)
+        setCustomerPrices(customerPriceData)
+        setInventoryLots(inventoryLotData)
         setAdminProfiles(adminData)
         setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
         setError('')
@@ -177,7 +215,7 @@ function App() {
         }
       }
     },
-    [clearAuthState, fetchDashboardData, user],
+    [clearAuthState, fetchWorkspaceData, user],
   )
 
   useEffect(() => {
@@ -306,7 +344,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-svh pb-24 sm:pb-0">
+    <div className="min-h-svh pb-36 sm:pb-0">
       <header className="sticky top-0 z-40 px-3 pt-3 sm:px-5 2xl:px-8">
         <div className="grid w-full gap-3 rounded-[1.75rem] border border-[var(--ui-border)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ui-card)_96%,transparent),color-mix(in_srgb,var(--ui-highlight)_6%,var(--ui-card)))] px-3 py-3 shadow-[var(--ui-shadow-soft)] backdrop-blur-xl md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -314,12 +352,18 @@ function App() {
               GL
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold tracking-normal sm:text-xl">Dashboard financiero</h1>
-              <p className="truncate text-xs text-muted-foreground">Gummy Lover's ERP</p>
+              <h1 className="truncate text-lg font-semibold tracking-normal sm:text-xl">Gummy Lover&apos;s ERP</h1>
+              <p className="truncate text-xs text-muted-foreground">Operación financiera, catálogo e inventario</p>
             </div>
           </div>
 
           <div className="hidden min-w-0 flex-wrap items-center justify-end gap-2 sm:flex">
+            <WholesaleSaleAction
+              customers={customers}
+              customerPrices={customerPrices}
+              products={products}
+              onCreated={refreshData}
+            />
             <DirectSaleAction user={user} products={products} onCreated={refreshData} />
             <ExpenseAction user={user} onCreated={refreshData} />
             <PaymentAction customers={customers} onCreated={refreshData} />
@@ -343,16 +387,37 @@ function App() {
       </header>
 
       <main className="grid w-full gap-5 px-4 py-5 sm:px-6 sm:py-6 2xl:px-8">
-        <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge variant="outline">Operación B2B</Badge>
+              <Badge variant="outline">{workspaceView === 'dashboard' ? 'Operación B2B' : 'Gestión de catálogos'}</Badge>
               {lastUpdated ? <span className="text-xs text-muted-foreground">Actualizado {lastUpdated}</span> : null}
             </div>
-            <h1 className="text-2xl font-semibold sm:text-3xl">Dashboard financiero</h1>
+            <h2 className="text-2xl font-semibold sm:text-3xl">
+              {workspaceView === 'dashboard' ? 'Dashboard financiero' : 'Catálogos e inventario'}
+            </h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Inventario, cobranza y reparto de socios en una vista operativa.
+              {workspaceView === 'dashboard'
+                ? 'Inventario, cobranza y reparto de socios en una vista operativa.'
+                : 'Da de alta proveedores, productos, porciones, clientes, precios y lotes sin salir de la aplicación.'}
             </p>
+          </div>
+
+          <div className="inline-flex w-full rounded-2xl border bg-card p-1 shadow-sm lg:w-auto">
+            <Button
+              className="flex-1 lg:flex-none"
+              variant={workspaceView === 'dashboard' ? 'default' : 'ghost'}
+              onClick={() => setWorkspaceView('dashboard')}
+            >
+              Dashboard
+            </Button>
+            <Button
+              className="flex-1 lg:flex-none"
+              variant={workspaceView === 'catalogs' ? 'default' : 'ghost'}
+              onClick={() => setWorkspaceView('catalogs')}
+            >
+              Catálogos
+            </Button>
           </div>
         </section>
 
@@ -362,76 +427,96 @@ function App() {
           </div>
         ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((metric) => (
-            <MetricCard key={metric.title} {...metric} />
-          ))}
-        </section>
+        {workspaceView === 'dashboard' ? (
+          <>
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {metrics.map((metric) => (
+                <MetricCard key={metric.title} {...metric} />
+              ))}
+            </section>
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
-          <CustomerTable customers={customers} />
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
+              <CustomerTable customers={customers} />
 
-          <aside className="grid content-start gap-5">
-            <Card>
-              <CardHeader className="border-b">
-                <CardTitle>Socios</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 pt-4 sm:pt-5">
-                {snapshot.partners.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin socios activos registrados.</p>
-                ) : (
-                  snapshot.partners.map((partner) => (
-                    <div key={partner.partner_id} className="rounded-lg border p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{partner.name}</p>
-                          <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
+              <aside className="grid content-start gap-5">
+                <Card>
+                  <CardHeader className="border-b">
+                    <CardTitle>Socios</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 pt-4 sm:pt-5">
+                    {snapshot.partners.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Sin socios activos registrados.</p>
+                    ) : (
+                      snapshot.partners.map((partner) => (
+                        <div key={partner.partner_id} className="rounded-lg border p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="font-medium">{partner.name}</p>
+                              <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
+                            </div>
+                            <Badge variant="secondary">{formatMoney(partner.net_partner_balance)}</Badge>
+                          </div>
+                          <dl className="mt-4 grid gap-2 text-sm">
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-muted-foreground">Reembolso disponible</dt>
+                              <dd className="font-medium tabular-nums">
+                                {formatMoney(partner.reimbursements_available_to_payout)}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-muted-foreground">Utilidad disponible</dt>
+                              <dd className="font-medium tabular-nums">
+                                {formatMoney(partner.profit_available_to_payout)}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                              <dt className="text-muted-foreground">Gastos pendientes</dt>
+                              <dd className="font-medium tabular-nums">
+                                {formatMoney(partner.reimbursements_pending_to_allocate)}
+                              </dd>
+                            </div>
+                          </dl>
                         </div>
-                        <Badge variant="secondary">{formatMoney(partner.net_partner_balance)}</Badge>
+                      ))
+                    )}
+
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+                      <div className="flex items-center gap-2 font-medium">
+                        <PackageCheck className="size-4" />
+                        Reserva de inventario
                       </div>
-                      <dl className="mt-4 grid gap-2 text-sm">
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-muted-foreground">Reembolso disponible</dt>
-                          <dd className="font-medium tabular-nums">
-                            {formatMoney(partner.reimbursements_available_to_payout)}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-muted-foreground">Utilidad disponible</dt>
-                          <dd className="font-medium tabular-nums">
-                            {formatMoney(partner.profit_available_to_payout)}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-muted-foreground">Gastos pendientes</dt>
-                          <dd className="font-medium tabular-nums">
-                            {formatMoney(partner.reimbursements_pending_to_allocate)}
-                          </dd>
-                        </div>
-                      </dl>
+                      <p className="mt-2 text-2xl font-semibold tabular-nums">
+                        {formatMoney(snapshot.inventory_reserve_allocated)}
+                      </p>
                     </div>
-                  ))
-                )}
+                  </CardContent>
+                </Card>
 
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
-                  <div className="flex items-center gap-2 font-medium">
-                    <PackageCheck className="size-4" />
-                    Reserva de inventario
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold tabular-nums">
-                    {formatMoney(snapshot.inventory_reserve_allocated)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <AdminProfilesCard admins={adminProfiles} />
-          </aside>
-        </section>
+                <AdminProfilesCard admins={adminProfiles} />
+              </aside>
+            </section>
+          </>
+        ) : (
+          <CatalogWorkspace
+            user={user}
+            customers={customers}
+            customerPrices={customerPrices}
+            inventoryLots={inventoryLots}
+            products={products}
+            suppliers={suppliers}
+            onRefresh={refreshData}
+          />
+        )}
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card p-3 shadow-lg sm:hidden">
-        <div className="grid w-full grid-cols-3 gap-2">
+        <div className="grid w-full grid-cols-2 gap-2">
+          <WholesaleSaleAction
+            customers={customers}
+            customerPrices={customerPrices}
+            products={products}
+            onCreated={refreshData}
+          />
           <DirectSaleAction user={user} products={products} onCreated={refreshData} />
           <ExpenseAction user={user} onCreated={refreshData} />
           <PaymentAction customers={customers} onCreated={refreshData} />

@@ -19,11 +19,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { createPayment, toNumber, type ApiError, type CustomerBalance } from '@/lib/api'
+import { createPayment, toNumber, type ApiError, type Customer } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 
 type PaymentActionProps = {
-  customers: CustomerBalance[]
+  customers: Customer[]
   onCreated: () => Promise<void>
 }
 

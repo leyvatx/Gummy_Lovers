@@ -196,6 +196,31 @@ class CoreAPITests(TestCase):
         self.assertEqual(response.data["total_amount"], "300.00")
         self.assertEqual(response.data["total_cogs"], "75.00")
 
+    def test_sales_endpoint_uses_authenticated_partner_as_seller(self):
+        self.partner_a.user = self.user
+        self.partner_a.name = "Efrain Leyva"
+        self.partner_a.save()
+
+        response = self.client.post(
+            "/api/sales/",
+            {
+                "customer": str(self.customer.id),
+                "items": [
+                    {
+                        "product": str(self.product.id),
+                        "portion": str(self.small.id),
+                        "portions_qty": 2,
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["channel"], Sale.Channel.WHOLESALE)
+        self.assertEqual(str(response.data["sold_by_partner"]), str(self.partner_a.id))
+        self.assertEqual(response.data["sold_by_partner_name"], "Efrain Leyva")
+
     def test_expense_endpoint_uses_authenticated_partner(self):
         self.partner_a.user = self.user
         self.partner_a.name = "Efrain Leyva"
@@ -214,6 +239,31 @@ class CoreAPITests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(str(response.data["paid_by_partner"]), str(self.partner_a.id))
+
+    def test_inventory_lot_endpoint_uses_authenticated_partner_by_default(self):
+        self.partner_a.user = self.user
+        self.partner_a.name = "Efrain Leyva"
+        self.partner_a.save()
+
+        response = self.client.post(
+            "/api/inventory-lots/",
+            {
+                "product": str(self.product.id),
+                "lot_code": "L-002",
+                "boxes_qty": 2,
+                "bags_per_box": 4,
+                "kg_per_bag": "1.000",
+                "box_cost": "650.00",
+                "purchased_at": str(timezone.localdate()),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(str(response.data["paid_by_partner"]), str(self.partner_a.id))
+        self.assertEqual(response.data["total_grams"], "8000.000")
+        self.assertEqual(response.data["remaining_grams"], "8000.000")
+        self.assertEqual(response.data["total_cost"], "1300.00")
 
     def test_direct_sale_endpoint_creates_paid_sale_for_authenticated_partner(self):
         self.partner_a.user = self.user

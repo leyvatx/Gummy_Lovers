@@ -19,7 +19,16 @@ export function formatCompactMoney(value: MoneyValue) {
   }).format(toNumber(value))
 }
 
+export function formatGrams(value: MoneyValue) {
+  const numericValue = toNumber(value)
+
+  if (numericValue >= 1000) {
+    return `${(numericValue / 1000).toLocaleString('es-MX', { maximumFractionDigits: 2 })} kg`
+  }
+
+  return `${numericValue.toLocaleString('es-MX', { maximumFractionDigits: 1 })} g`
+}
+
 export function todayInputValue() {
   return new Date().toISOString().slice(0, 10)
 }
-

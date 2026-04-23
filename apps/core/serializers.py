@@ -188,6 +188,11 @@ class InventoryLotSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        request = self.context.get("request")
+        partner = getattr(getattr(request, "user", None), "partner", None)
+        if partner and not validated_data.get("paid_by_partner"):
+            validated_data["paid_by_partner"] = partner
+
         boxes_qty = Decimal(validated_data["boxes_qty"])
         bags_per_box = Decimal(validated_data["bags_per_box"])
         kg_per_bag = validated_data["kg_per_bag"]
@@ -300,7 +305,14 @@ class SaleSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items = validated_data.pop("items")
-        return services.create_sale(lines=items, **validated_data)
+        request = self.context.get("request")
+        partner = getattr(getattr(request, "user", None), "partner", None)
+        return services.create_sale(
+            lines=items,
+            sold_by_partner=partner,
+            channel=Sale.Channel.WHOLESALE,
+            **validated_data,
+        )
 
 
 class OperationalExpenseSerializer(serializers.ModelSerializer):
