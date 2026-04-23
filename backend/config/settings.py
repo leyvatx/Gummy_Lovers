@@ -9,6 +9,7 @@ FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-gummy-lovers-secret-key")
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+USE_HTTPS = os.environ.get("DJANGO_USE_HTTPS", "0") == "1"
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -114,8 +115,9 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+USE_X_FORWARDED_HOST = os.environ.get("DJANGO_USE_X_FORWARDED_HOST", "1") == "1"
+SESSION_COOKIE_SECURE = USE_HTTPS
+CSRF_COOKIE_SECURE = USE_HTTPS
 SESSION_COOKIE_AGE = int(os.environ.get("DJANGO_SESSION_COOKIE_AGE", str(60 * 60 * 24 * 30)))
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
