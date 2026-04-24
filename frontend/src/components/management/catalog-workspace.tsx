@@ -1,19 +1,13 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react'
-import { Candy, Eye, MoreHorizontal, Pencil, Search, Store, Trash2 } from 'lucide-react'
+import { type FormEvent, type HTMLAttributes, type ReactNode, useMemo, useState } from 'react'
+import { Candy, Eye, Pencil, Search, Store, Trash2 } from 'lucide-react'
 
 import type { AppSection } from '@/components/layout/app-sidebar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RowContextMenu, type RowContextMenuTarget, useRowContextMenu } from '@/components/ui/row-context-menu'
 import {
   Select,
   SelectContent,
@@ -41,6 +35,7 @@ import {
   type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 type CatalogWorkspaceProps = {
   section: Extract<AppSection, 'suppliers' | 'products'>
@@ -146,8 +141,12 @@ function MobileCards({ children }: { children: ReactNode }) {
   return <div className="grid gap-3 p-4 md:hidden">{children}</div>
 }
 
-function MobileCard({ children }: { children: ReactNode }) {
-  return <article className="rounded-2xl border bg-background/70 p-4 shadow-sm">{children}</article>
+function MobileCard({ children, className, ...props }: HTMLAttributes<HTMLElement> & { children: ReactNode }) {
+  return (
+    <article className={cn('rounded-2xl border bg-background/70 p-4 shadow-sm', className)} {...props}>
+      {children}
+    </article>
+  )
 }
 
 function FieldRow({ label, value }: { label: string; value: ReactNode }) {
@@ -163,13 +162,17 @@ function DesktopTable({ children }: { children: ReactNode }) {
   return <div className="hidden overflow-x-auto md:block">{children}</div>
 }
 
-function SupplierRowActions({
+function SupplierContextActions({
   supplier,
   partners,
+  menuTarget,
+  onCloseMenu,
   onChanged,
 }: {
   supplier: Supplier
   partners: Partner[]
+  menuTarget: RowContextMenuTarget
+  onCloseMenu: () => void
   onChanged: () => Promise<void>
 }) {
   const [mode, setMode] = useState<RowMode>(null)
@@ -212,29 +215,16 @@ function SupplierRowActions({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-9 rounded-xl">
-            <MoreHorizontal className="size-4" />
-            <span className="sr-only">Abrir acciones</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44 rounded-2xl p-2">
-          <DropdownMenuItem onSelect={() => setMode('details')}>
-            <Eye className="size-4" />
-            Ver detalles
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setMode('edit')}>
-            <Pencil className="size-4" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void handleDelete()}>
-            <Trash2 className="size-4" />
-            Eliminar
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <RowContextMenu
+        target={menuTarget}
+        rowId={supplier.id}
+        onClose={onCloseMenu}
+        items={[
+          { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
+          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: () => setMode('edit') },
+          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
+        ]}
+      />
 
       <Sheet open={mode !== null} onOpenChange={(open) => setMode(open ? mode : null)}>
         <SheetContent className={sheetClassName}>
@@ -300,11 +290,15 @@ function SupplierRowActions({
   )
 }
 
-function ProductRowActions({
+function ProductContextActions({
   product,
+  menuTarget,
+  onCloseMenu,
   onChanged,
 }: {
   product: Product
+  menuTarget: RowContextMenuTarget
+  onCloseMenu: () => void
   onChanged: () => Promise<void>
 }) {
   const [mode, setMode] = useState<RowMode>(null)
@@ -345,29 +339,16 @@ function ProductRowActions({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-9 rounded-xl">
-            <MoreHorizontal className="size-4" />
-            <span className="sr-only">Abrir acciones</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44 rounded-2xl p-2">
-          <DropdownMenuItem onSelect={() => setMode('details')}>
-            <Eye className="size-4" />
-            Ver detalles
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setMode('edit')}>
-            <Pencil className="size-4" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void handleDelete()}>
-            <Trash2 className="size-4" />
-            Eliminar
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <RowContextMenu
+        target={menuTarget}
+        rowId={product.id}
+        onClose={onCloseMenu}
+        items={[
+          { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
+          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: () => setMode('edit') },
+          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
+        ]}
+      />
 
       <Sheet open={mode !== null} onOpenChange={(open) => setMode(open ? mode : null)}>
         <SheetContent className={sheetClassName}>
@@ -433,6 +414,7 @@ function SuppliersSection({
   onChanged,
 }: Pick<CatalogWorkspaceProps, 'partners' | 'suppliers' | 'onChanged'>) {
   const [query, setQuery] = useState('')
+  const supplierContextMenu = useRowContextMenu()
   const normalizedQuery = normalizeSearch(query)
   const filteredSuppliers = useMemo(
     () =>
@@ -463,42 +445,53 @@ function SuppliersSection({
             <>
               <MobileCards>
                 {filteredSuppliers.map((supplier) => (
-                  <MobileCard key={supplier.id}>
-                    <div className="flex items-start justify-between gap-3">
+                  <MobileCard key={supplier.id} {...supplierContextMenu.getTargetProps(supplier.id)}>
+                    <div className="flex items-start gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-semibold">{supplier.name}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{supplier.phone || 'Sin teléfono'}</p>
                       </div>
-                      <SupplierRowActions supplier={supplier} partners={partners} onChanged={onChanged} />
                     </div>
                     <dl className="mt-4 grid gap-2 text-sm">
                       <FieldRow label="Socio vinculado" value={supplier.partner_name || 'Ninguno'} />
                       <FieldRow label="Notas" value={supplier.notes || 'Sin notas'} />
                     </dl>
+                    <SupplierContextActions
+                      supplier={supplier}
+                      partners={partners}
+                      menuTarget={supplierContextMenu.target}
+                      onCloseMenu={supplierContextMenu.close}
+                      onChanged={onChanged}
+                    />
                   </MobileCard>
                 ))}
               </MobileCards>
 
               <DesktopTable>
-                <table className="w-full min-w-[820px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Nombre</th>
                       <th className="px-4 py-3 font-medium">Teléfono</th>
                       <th className="px-4 py-3 font-medium">Socio vinculado</th>
                       <th className="px-4 py-3 font-medium">Notas</th>
-                      <th className="px-4 py-3 text-right font-medium sm:px-5">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredSuppliers.map((supplier) => (
-                      <tr key={supplier.id} className="border-t">
+                      <tr key={supplier.id} className="border-t transition-colors hover:bg-muted/40" {...supplierContextMenu.getTargetProps(supplier.id)}>
                         <td className="px-4 py-4 font-medium sm:px-5">{supplier.name}</td>
                         <td className="px-4 py-4 text-muted-foreground">{supplier.phone || 'Sin teléfono'}</td>
                         <td className="px-4 py-4 text-muted-foreground">{supplier.partner_name || 'Ninguno'}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{supplier.notes || 'Sin notas'}</td>
-                        <td className="px-4 py-4 text-right sm:px-5">
-                          <SupplierRowActions supplier={supplier} partners={partners} onChanged={onChanged} />
+                        <td className="px-4 py-4 text-muted-foreground">
+                          {supplier.notes || 'Sin notas'}
+                          <SupplierContextActions
+                            supplier={supplier}
+                            partners={partners}
+                            menuTarget={supplierContextMenu.target}
+                            onCloseMenu={supplierContextMenu.close}
+                            onChanged={onChanged}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -518,6 +511,7 @@ function ProductsSection({
   onChanged,
 }: Pick<CatalogWorkspaceProps, 'products' | 'onChanged'>) {
   const [query, setQuery] = useState('')
+  const productContextMenu = useRowContextMenu()
   const normalizedQuery = normalizeSearch(query)
   const filteredProducts = useMemo(
     () => products.filter((product) => matchesQuery(normalizedQuery, [product.name, product.sku])),
@@ -550,30 +544,35 @@ function ProductsSection({
                   const status = productStatus(toNumber(product.available_grams))
 
                   return (
-                    <MobileCard key={product.id}>
+                    <MobileCard key={product.id} {...productContextMenu.getTargetProps(product.id)}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-semibold">{product.name}</p>
                           <p className="mt-1 text-sm text-muted-foreground">{product.sku}</p>
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
+                        <div className="flex shrink-0 items-center">
                           <Badge variant="outline" className={status.className}>
                             {status.label}
                           </Badge>
-                          <ProductRowActions product={product} onChanged={onChanged} />
                         </div>
                       </div>
                       <dl className="mt-4 grid gap-2 text-sm">
                         <FieldRow label="Precio de mayoreo" value={<span className="font-semibold tabular-nums">{formatMoney(product.wholesale_price)}</span>} />
                         <FieldRow label="Existencia" value={<span className="font-semibold tabular-nums">{formatUnits(product.available_grams)}</span>} />
                       </dl>
+                      <ProductContextActions
+                        product={product}
+                        menuTarget={productContextMenu.target}
+                        onCloseMenu={productContextMenu.close}
+                        onChanged={onChanged}
+                      />
                     </MobileCard>
                   )
                 })}
               </MobileCards>
 
               <DesktopTable>
-                <table className="w-full min-w-[880px] text-left text-sm">
+                <table className="w-full min-w-[800px] text-left text-sm">
                   <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Producto</th>
@@ -581,7 +580,6 @@ function ProductsSection({
                       <th className="px-4 py-3 font-medium">Precio de mayoreo</th>
                       <th className="px-4 py-3 font-medium">Existencia</th>
                       <th className="px-4 py-3 font-medium">Estado</th>
-                      <th className="px-4 py-3 text-right font-medium sm:px-5">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -589,7 +587,7 @@ function ProductsSection({
                       const status = productStatus(toNumber(product.available_grams))
 
                       return (
-                        <tr key={product.id} className="border-t">
+                        <tr key={product.id} className="border-t transition-colors hover:bg-muted/40" {...productContextMenu.getTargetProps(product.id)}>
                           <td className="px-4 py-4 font-medium sm:px-5">{product.name}</td>
                           <td className="px-4 py-4 text-muted-foreground">{product.sku}</td>
                           <td className="px-4 py-4 font-semibold tabular-nums">{formatMoney(product.wholesale_price)}</td>
@@ -598,9 +596,12 @@ function ProductsSection({
                             <Badge variant="outline" className={status.className}>
                               {status.label}
                             </Badge>
-                          </td>
-                          <td className="px-4 py-4 text-right sm:px-5">
-                            <ProductRowActions product={product} onChanged={onChanged} />
+                            <ProductContextActions
+                              product={product}
+                              menuTarget={productContextMenu.target}
+                              onCloseMenu={productContextMenu.close}
+                              onChanged={onChanged}
+                            />
                           </td>
                         </tr>
                       )

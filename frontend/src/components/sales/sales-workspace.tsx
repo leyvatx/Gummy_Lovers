@@ -1,18 +1,12 @@
 import { type FormEvent, useMemo, useState } from 'react'
-import { Eye, MoreHorizontal, Pencil, ReceiptText, Trash2 } from 'lucide-react'
+import { Eye, Pencil, ReceiptText, Trash2 } from 'lucide-react'
 
 import type { SaleChannelFilter, SaleStatusFilter } from '@/components/sales/sales-filters'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import { RowContextMenu, type RowContextMenuTarget, useRowContextMenu } from '@/components/ui/row-context-menu'
 import {
   Sheet,
   SheetContent,
@@ -119,11 +113,15 @@ function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function SaleRowActions({
+function SaleContextActions({
   sale,
+  menuTarget,
+  onCloseMenu,
   onChanged,
 }: {
   sale: SaleRecord
+  menuTarget: RowContextMenuTarget
+  onCloseMenu: () => void
   onChanged: () => Promise<void>
 }) {
   const [mode, setMode] = useState<RowMode>(null)
@@ -162,29 +160,16 @@ function SaleRowActions({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-9 rounded-xl">
-            <MoreHorizontal className="size-4" />
-            <span className="sr-only">Abrir acciones</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44 rounded-2xl p-2">
-          <DropdownMenuItem onSelect={() => setMode('details')}>
-            <Eye className="size-4" />
-            Ver detalles
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setMode('edit')}>
-            <Pencil className="size-4" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void handleDelete()}>
-            <Trash2 className="size-4" />
-            Eliminar
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <RowContextMenu
+        target={menuTarget}
+        rowId={sale.id}
+        onClose={onCloseMenu}
+        items={[
+          { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
+          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: () => setMode('edit') },
+          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
+        ]}
+      />
 
       <Sheet open={mode !== null} onOpenChange={(open) => setMode(open ? mode : null)}>
         <SheetContent className={sheetClassName}>
@@ -240,6 +225,7 @@ function SaleRowActions({
 }
 
 function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorkspaceProps) {
+  const saleContextMenu = useRowContextMenu()
   const filteredSales = useMemo(() => {
     const normalizedQuery = normalizeSearch(query)
 
@@ -276,17 +262,16 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
             <>
               <div className="grid gap-3 p-4 md:hidden">
                 {filteredSales.map((sale) => (
-                  <article key={sale.id} className="rounded-2xl border bg-background/70 p-4 shadow-sm">
+                  <article key={sale.id} className="rounded-2xl border bg-background/70 p-4 shadow-sm" {...saleContextMenu.getTargetProps(sale.id)}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-semibold">{channelLabel(sale)}</p>
                         <p className="mt-1 text-sm text-muted-foreground">{formatDate(sale.delivered_at)}</p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex shrink-0 items-center">
                         <Badge variant="outline" className={statusClasses[sale.status]}>
                           {statusLabels[sale.status]}
                         </Badge>
-                        <SaleRowActions sale={sale} onChanged={onChanged} />
                       </div>
                     </div>
                     <dl className="mt-4 grid gap-2 text-sm">
@@ -294,12 +279,18 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
                       <FieldRow label="Productos" value={saleProductLabel(sale)} />
                       <FieldRow label="Total" value={<span className="font-semibold tabular-nums">{formatMoney(sale.total_amount)}</span>} />
                     </dl>
+                    <SaleContextActions
+                      sale={sale}
+                      menuTarget={saleContextMenu.target}
+                      onCloseMenu={saleContextMenu.close}
+                      onChanged={onChanged}
+                    />
                   </article>
                 ))}
               </div>
 
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[980px] text-left text-sm">
+                <table className="w-full min-w-[900px] text-left text-sm">
                   <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Fecha</th>
@@ -308,12 +299,11 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
                       <th className="px-4 py-3 font-medium">Productos</th>
                       <th className="px-4 py-3 font-medium">Total</th>
                       <th className="px-4 py-3 font-medium">Estado</th>
-                      <th className="px-4 py-3 text-right font-medium sm:px-5">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredSales.map((sale) => (
-                      <tr key={sale.id} className="border-t">
+                      <tr key={sale.id} className="border-t transition-colors hover:bg-muted/40" {...saleContextMenu.getTargetProps(sale.id)}>
                         <td className="px-4 py-4 text-muted-foreground sm:px-5">{formatDate(sale.delivered_at)}</td>
                         <td className="px-4 py-4 font-medium">{channelLabel(sale)}</td>
                         <td className="px-4 py-4 text-muted-foreground">{sale.sold_by_partner_name || 'Sin vendedor'}</td>
@@ -323,9 +313,12 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
                           <Badge variant="outline" className={statusClasses[sale.status]}>
                             {statusLabels[sale.status]}
                           </Badge>
-                        </td>
-                        <td className="px-4 py-4 text-right sm:px-5">
-                          <SaleRowActions sale={sale} onChanged={onChanged} />
+                          <SaleContextActions
+                            sale={sale}
+                            menuTarget={saleContextMenu.target}
+                            onCloseMenu={saleContextMenu.close}
+                            onChanged={onChanged}
+                          />
                         </td>
                       </tr>
                     ))}
