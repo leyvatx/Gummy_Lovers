@@ -118,6 +118,7 @@ export function RowContextMenu({ target, rowId, items, onClose }: RowContextMenu
       style={{ left, top }}
       onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}
+      onPointerDown={(event) => event.stopPropagation()}
     >
       {items.map((item) => (
         <button
@@ -129,9 +130,10 @@ export function RowContextMenu({ target, rowId, items, onClose }: RowContextMenu
             item.destructive && 'text-destructive hover:bg-destructive/10 focus-visible:bg-destructive/10',
           )}
           onClick={() => {
-            onClose()
             item.onSelect()
+            onClose()
           }}
+          onPointerDown={(event) => event.stopPropagation()}
         >
           {item.icon ? <span className="grid size-4 shrink-0 place-items-center">{item.icon}</span> : null}
           <span className="truncate">{item.label}</span>

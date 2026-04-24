@@ -213,6 +213,15 @@ function SupplierContextActions({
     await onChanged()
   }
 
+  function openEdit() {
+    setName(supplier.name)
+    setPhone(supplier.phone)
+    setPartner(supplier.partner ?? 'none')
+    setNotes(supplier.notes)
+    setError('')
+    setMode('edit')
+  }
+
   return (
     <>
       <RowContextMenu
@@ -221,7 +230,7 @@ function SupplierContextActions({
         onClose={onCloseMenu}
         items={[
           { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
-          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: () => setMode('edit') },
+          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: openEdit },
           { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
         ]}
       />
@@ -337,6 +346,14 @@ function ProductContextActions({
     await onChanged()
   }
 
+  function openEdit() {
+    setSku(product.sku)
+    setName(product.name)
+    setWholesalePrice(String(product.wholesale_price))
+    setError('')
+    setMode('edit')
+  }
+
   return (
     <>
       <RowContextMenu
@@ -345,7 +362,7 @@ function ProductContextActions({
         onClose={onCloseMenu}
         items={[
           { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
-          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: () => setMode('edit') },
+          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: openEdit },
           { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
         ]}
       />

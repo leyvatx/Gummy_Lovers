@@ -1,5 +1,5 @@
-import { type FormEvent, useMemo, useState } from 'react'
-import { Candy } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
+import { Store } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,12 +19,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { createDirectSale, toNumber, type ApiError, type AuthUser, type Product } from '@/lib/api'
+import { createSupplierSale, toNumber, type ApiError, type Product, type Supplier } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 
-type DirectSaleActionProps = {
-  user: AuthUser
+type SupplierSaleActionProps = {
   products: Product[]
+  suppliers: Supplier[]
   onCreated: () => Promise<void>
 }
 
@@ -32,7 +32,7 @@ const sheetClassName =
   'w-full max-w-none overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:w-[420px] sm:max-w-none sm:p-6'
 
 function errorMessage(error: unknown) {
-  return (error as ApiError)?.message ?? 'No se pudo guardar la venta.'
+  return (error as ApiError)?.message ?? 'No se pudo guardar la venta a proveedor.'
 }
 
 function formatUnits(value: string | number) {
@@ -40,54 +40,43 @@ function formatUnits(value: string | number) {
   return `${units.toLocaleString('es-MX', { maximumFractionDigits: 0 })} pieza${units === 1 ? '' : 's'}`
 }
 
-function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) {
+function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActionProps) {
   const [open, setOpen] = useState(false)
+  const [supplier, setSupplier] = useState('')
   const [product, setProduct] = useState('')
   const [quantityValue, setQuantityValue] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
+  const [paidAmount, setPaidAmount] = useState('0')
   const [method, setMethod] = useState('cash')
   const [reference, setReference] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const selectedProduct = useMemo(
-    () => products.find((item) => item.id === product),
-    [product, products],
-  )
-  const selectedUnit = useMemo(
-    () => selectedProduct?.portions.find((item) => item.active) ?? null,
-    [selectedProduct],
-  )
   const quantity = Number(quantityValue)
   const price = Number(unitPrice)
   const saleTotal = Number.isFinite(quantity) && Number.isFinite(price) ? quantity * price : 0
-  const wholesaleUnitPrice = toNumber(selectedProduct?.wholesale_price ?? 0)
-  const extraPerUnit = Number.isFinite(price) ? Math.max(0, price - wholesaleUnitPrice) : 0
-  const directSaleExtra = Number.isFinite(quantity) ? extraPerUnit * quantity : 0
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
-
-    if (!selectedUnit) {
-      setError('Este producto no tiene una unidad interna para vender. Vuelve a crearlo desde Productos.')
-      return
-    }
-
     setIsSaving(true)
 
     try {
-      await createDirectSale({
+      await createSupplierSale({
+        supplier,
         product,
-        portion: selectedUnit.id,
-        portions_qty: Number(quantityValue),
+        quantity: Number(quantityValue),
         unit_price: unitPrice,
+        paid_amount: paidAmount || '0',
         method,
         reference,
       })
       setOpen(false)
+      setSupplier('')
+      setProduct('')
       setQuantityValue('1')
       setUnitPrice('')
+      setPaidAmount('0')
       setReference('')
       await onCreated()
     } catch (submitError) {
@@ -100,28 +89,46 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button className="quick-action-button max-sm:size-10 max-sm:px-0" title="Venta propia">
-          <Candy />
-          <span className="hidden sm:inline">Venta propia</span>
-          <span className="sr-only sm:hidden">Venta propia</span>
+        <Button className="quick-action-button max-sm:size-10 max-sm:px-0" title="Venta a proveedor" disabled={suppliers.length === 0 || products.length === 0}>
+          <Store />
+          <span className="hidden sm:inline">Venta a proveedor</span>
+          <span className="sr-only sm:hidden">Venta a proveedor</span>
         </Button>
       </SheetTrigger>
       <SheetContent className={sheetClassName}>
         <SheetHeader>
-          <SheetTitle>Registrar venta propia</SheetTitle>
-          <SheetDescription>Venta pagada y registrada a nombre de tu sesión.</SheetDescription>
+          <SheetTitle>Registrar venta a proveedor</SheetTitle>
+          <SheetDescription>Usa el precio de mayoreo y registra cobro parcial o pendiente.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
-          <div className="rounded-xl border bg-muted/45 p-3 text-sm">
-            <p className="font-medium">{user.full_name}</p>
-            <p className="text-xs text-muted-foreground">Socio vendedor desde la sesión activa</p>
+          <div className="grid gap-2">
+            <Label htmlFor="supplier-sale-supplier">Proveedor</Label>
+            <Select value={supplier} onValueChange={setSupplier}>
+              <SelectTrigger id="supplier-sale-supplier">
+                <SelectValue placeholder="Selecciona proveedor" />
+              </SelectTrigger>
+              <SelectContent>
+                {suppliers.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="direct-sale-product">Producto</Label>
-            <Select value={product} onValueChange={setProduct}>
-              <SelectTrigger id="direct-sale-product">
+            <Label htmlFor="supplier-sale-product">Producto</Label>
+            <Select
+              value={product}
+              onValueChange={(value) => {
+                setProduct(value)
+                const nextProduct = products.find((item) => item.id === value)
+                setUnitPrice(nextProduct ? String(nextProduct.wholesale_price) : '')
+              }}
+            >
+              <SelectTrigger id="supplier-sale-product">
                 <SelectValue placeholder="Selecciona producto" />
               </SelectTrigger>
               <SelectContent>
@@ -136,9 +143,9 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
 
           <div className="grid gap-3 min-[380px]:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="direct-sale-quantity">Cantidad</Label>
+              <Label htmlFor="supplier-sale-quantity">Cantidad</Label>
               <Input
-                id="direct-sale-quantity"
+                id="supplier-sale-quantity"
                 type="number"
                 min="1"
                 step="1"
@@ -148,9 +155,9 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="direct-sale-price">Precio unitario</Label>
+              <Label htmlFor="supplier-sale-price">Precio de mayoreo</Label>
               <Input
-                id="direct-sale-price"
+                id="supplier-sale-price"
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -163,9 +170,21 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
 
           <div className="grid gap-3 min-[380px]:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="direct-sale-method">Método</Label>
+              <Label htmlFor="supplier-sale-paid">Cobro recibido</Label>
+              <Input
+                id="supplier-sale-paid"
+                type="number"
+                min="0"
+                step="0.01"
+                value={paidAmount}
+                onChange={(event) => setPaidAmount(event.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="supplier-sale-method">Método</Label>
               <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger id="direct-sale-method">
+                <SelectTrigger id="supplier-sale-method">
                   <SelectValue placeholder="Método" />
                 </SelectTrigger>
                 <SelectContent>
@@ -175,36 +194,32 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="direct-sale-reference">Referencia</Label>
-              <Input
-                id="direct-sale-reference"
-                value={reference}
-                onChange={(event) => setReference(event.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="supplier-sale-reference">Referencia</Label>
+            <Input
+              id="supplier-sale-reference"
+              value={reference}
+              onChange={(event) => setReference(event.target.value)}
+              placeholder="Opcional"
+            />
           </div>
 
           <div className="rounded-xl border bg-background/55 p-3 text-sm">
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Precio de mayoreo</span>
-              <span className="font-medium tabular-nums">{formatMoney(wholesaleUnitPrice)}</span>
-            </div>
-            <div className="mt-2 flex justify-between gap-3">
-              <span className="text-muted-foreground">Extra propio</span>
-              <span className="font-medium tabular-nums">{formatMoney(directSaleExtra)}</span>
-            </div>
-            <div className="my-3 h-px bg-border" />
-            <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Total</span>
               <span className="font-semibold tabular-nums">{formatMoney(saleTotal)}</span>
+            </div>
+            <div className="mt-2 flex justify-between gap-3">
+              <span className="text-muted-foreground">Pendiente</span>
+              <span className="font-semibold tabular-nums">{formatMoney(Math.max(0, saleTotal - toNumber(paidAmount)))}</span>
             </div>
           </div>
 
           {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-          <Button type="submit" disabled={isSaving || !product || !selectedUnit || !unitPrice || products.length === 0}>
+          <Button type="submit" disabled={isSaving || !supplier || !product || !unitPrice || suppliers.length === 0 || products.length === 0}>
             {isSaving ? 'Guardando...' : 'Guardar venta'}
           </Button>
         </form>
@@ -213,4 +228,4 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
   )
 }
 
-export { DirectSaleAction }
+export { SupplierSaleAction }

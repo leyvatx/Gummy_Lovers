@@ -141,12 +141,14 @@ def create_sale(
     notes="",
     channel=Sale.Channel.WHOLESALE,
     sold_by_partner=None,
+    supplier=None,
 ):
     if not lines:
         raise ValidationError({"lines": "La venta debe incluir al menos un producto."})
 
     sale = Sale.objects.create(
         customer=customer,
+        supplier=supplier,
         channel=channel,
         sold_by_partner=sold_by_partner,
         status=Sale.Status.DELIVERED,
@@ -199,6 +201,37 @@ def create_sale(
     sale.total_cogs = money(total_cogs)
     sale.save(update_fields=["total_amount", "total_cogs", "updated_at"])
     return sale
+
+
+def _wholesale_customer_for_supplier(supplier):
+    customer, created = CustomerNode.objects.get_or_create(
+        name=f"Proveedor - {supplier.name}",
+        defaults={
+            "kind": CustomerNode.Kind.WHOLESALE,
+            "contact_name": supplier.name,
+            "phone": supplier.phone,
+            "active": True,
+        },
+    )
+    changed_fields = []
+
+    if customer.kind != CustomerNode.Kind.WHOLESALE:
+        customer.kind = CustomerNode.Kind.WHOLESALE
+        changed_fields.append("kind")
+    if customer.contact_name != supplier.name:
+        customer.contact_name = supplier.name
+        changed_fields.append("contact_name")
+    if customer.phone != supplier.phone:
+        customer.phone = supplier.phone
+        changed_fields.append("phone")
+    if not customer.active:
+        customer.active = True
+        changed_fields.append("active")
+
+    if not created and changed_fields:
+        customer.save(update_fields=[*changed_fields, "updated_at"])
+
+    return customer
 
 
 def _direct_sale_customer_for_partner(partner):
@@ -259,6 +292,65 @@ def create_direct_sale(*, partner, product, portion, portions_qty, unit_price, m
         sale_allocations=[{"sale": sale, "amount": sale.total_amount}],
     )
     sale.refresh_from_db()
+    return sale, payment
+
+
+@transaction.atomic
+def create_supplier_sale(
+    *,
+    partner,
+    supplier,
+    product,
+    portion,
+    quantity,
+    unit_price=None,
+    paid_amount=Decimal("0.00"),
+    method="cash",
+    reference="",
+    delivered_at=None,
+    notes="",
+):
+    if not partner:
+        raise ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
+    if not supplier.active:
+        raise ValidationError({"supplier": "El proveedor seleccionado no está activo."})
+
+    delivered_at = delivered_at or timezone.now()
+    customer = _wholesale_customer_for_supplier(supplier)
+    price = money(unit_price if unit_price is not None else product.wholesale_price)
+
+    sale = create_sale(
+        customer=customer,
+        supplier=supplier,
+        lines=[
+            {
+                "product": product,
+                "portion": portion,
+                "portions_qty": quantity,
+                "unit_price": price,
+            }
+        ],
+        delivered_at=delivered_at,
+        notes=notes,
+        channel=Sale.Channel.WHOLESALE,
+        sold_by_partner=partner,
+    )
+
+    payment = None
+    paid_amount = money(paid_amount)
+    if paid_amount > sale.total_amount:
+        raise ValidationError({"paid_amount": "El cobro no puede superar el total de la venta."})
+    if paid_amount > 0:
+        payment = record_customer_payment(
+            customer=customer,
+            amount=paid_amount,
+            received_at=delivered_at,
+            method=method,
+            reference=reference,
+            sale_allocations=[{"sale": sale, "amount": paid_amount}],
+        )
+        sale.refresh_from_db()
+
     return sale, payment
 
 

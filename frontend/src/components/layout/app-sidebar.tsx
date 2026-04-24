@@ -7,13 +7,14 @@ import {
   Search,
   ShoppingBasket,
   Store,
+  UserRound,
   X,
 } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-export type AppSection = 'dashboard' | 'sales' | 'suppliers' | 'products'
+export type AppSection = 'dashboard' | 'sales' | 'partners' | 'suppliers' | 'products'
 
 type SidebarSection = {
   key: AppSection
@@ -44,6 +45,12 @@ const sections: SidebarSection[] = [
     label: 'Ventas',
     helper: 'Historial y filtros',
     icon: ReceiptText,
+  },
+  {
+    key: 'partners',
+    label: 'Socios',
+    helper: 'Inversión y ventas',
+    icon: UserRound,
   },
   {
     key: 'suppliers',

@@ -71,7 +71,15 @@ function formatDate(value: string | null) {
 }
 
 function channelLabel(sale: SaleRecord) {
-  return sale.channel === 'direct' ? 'Venta propia' : 'Mayoreo'
+  return sale.channel === 'direct' ? 'Venta propia' : 'Venta a proveedores'
+}
+
+function salePartyLabel(sale: SaleRecord) {
+  if (sale.channel === 'wholesale') {
+    return sale.supplier_name || sale.customer_name || 'Sin proveedor'
+  }
+
+  return sale.sold_by_partner_name || sale.customer_name || 'Sin registro'
 }
 
 function normalizeSearch(value: string) {
@@ -93,6 +101,7 @@ function matchesSaleQuery(sale: SaleRecord, query: string) {
 
   return [
     sale.customer_name,
+    sale.supplier_name,
     sale.sold_by_partner_name,
     sale.status,
     sale.notes,
@@ -158,6 +167,12 @@ function SaleContextActions({
     }
   }
 
+  function openEdit() {
+    setNotes(sale.notes)
+    setError('')
+    setMode('edit')
+  }
+
   return (
     <>
       <RowContextMenu
@@ -166,7 +181,7 @@ function SaleContextActions({
         onClose={onCloseMenu}
         items={[
           { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
-          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: () => setMode('edit') },
+          { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: openEdit },
           { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
         ]}
       />
@@ -190,7 +205,7 @@ function SaleContextActions({
                   }
                 />
                 <FieldRow label="Vendedor" value={sale.sold_by_partner_name || 'Sin vendedor'} />
-                <FieldRow label="Registro" value={sale.customer_name || 'Sin registro'} />
+                <FieldRow label="Registro" value={salePartyLabel(sale)} />
                 <FieldRow label="Productos" value={saleProductLabel(sale)} />
                 <FieldRow label="Total" value={<span className="font-semibold tabular-nums">{formatMoney(sale.total_amount)}</span>} />
                 <FieldRow label="Pagado" value={<span className="tabular-nums">{formatMoney(sale.paid_amount)}</span>} />
@@ -276,6 +291,7 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
                     </div>
                     <dl className="mt-4 grid gap-2 text-sm">
                       <FieldRow label="Vendedor" value={sale.sold_by_partner_name || 'Sin vendedor'} />
+                      <FieldRow label="Registro" value={salePartyLabel(sale)} />
                       <FieldRow label="Productos" value={saleProductLabel(sale)} />
                       <FieldRow label="Total" value={<span className="font-semibold tabular-nums">{formatMoney(sale.total_amount)}</span>} />
                     </dl>
@@ -290,12 +306,13 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
               </div>
 
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Fecha</th>
                       <th className="px-4 py-3 font-medium">Canal</th>
                       <th className="px-4 py-3 font-medium">Vendedor</th>
+                      <th className="px-4 py-3 font-medium">Registro</th>
                       <th className="px-4 py-3 font-medium">Productos</th>
                       <th className="px-4 py-3 font-medium">Total</th>
                       <th className="px-4 py-3 font-medium">Estado</th>
@@ -307,6 +324,7 @@ function SalesWorkspace({ sales, query, status, channel, onChanged }: SalesWorks
                         <td className="px-4 py-4 text-muted-foreground sm:px-5">{formatDate(sale.delivered_at)}</td>
                         <td className="px-4 py-4 font-medium">{channelLabel(sale)}</td>
                         <td className="px-4 py-4 text-muted-foreground">{sale.sold_by_partner_name || 'Sin vendedor'}</td>
+                        <td className="px-4 py-4 text-muted-foreground">{salePartyLabel(sale)}</td>
                         <td className="px-4 py-4 text-muted-foreground">{saleProductLabel(sale)}</td>
                         <td className="px-4 py-4 font-semibold tabular-nums">{formatMoney(sale.total_amount)}</td>
                         <td className="px-4 py-4">

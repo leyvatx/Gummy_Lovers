@@ -257,6 +257,7 @@ class SaleLineInputSerializer(serializers.Serializer):
 
 class SaleSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     sold_by_partner_name = serializers.CharField(source="sold_by_partner.name", read_only=True)
     lines = SaleLineSerializer(many=True, read_only=True)
     items = SaleLineInputSerializer(many=True, write_only=True, required=True)
@@ -269,6 +270,8 @@ class SaleSerializer(serializers.ModelSerializer):
             "id",
             "customer",
             "customer_name",
+            "supplier",
+            "supplier_name",
             "channel",
             "sold_by_partner",
             "sold_by_partner_name",
@@ -288,6 +291,7 @@ class SaleSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "channel",
+            "supplier_name",
             "sold_by_partner",
             "sold_by_partner_name",
             "status",
@@ -316,6 +320,52 @@ class SaleSerializer(serializers.ModelSerializer):
             channel=Sale.Channel.WHOLESALE,
             **validated_data,
         )
+
+
+class SupplierSaleSerializer(serializers.Serializer):
+    supplier = serializers.PrimaryKeyRelatedField(queryset=Supplier.objects.filter(active=True))
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(active=True))
+    quantity = serializers.IntegerField(min_value=1)
+    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False)
+    paid_amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        default=Decimal("0.00"),
+    )
+    method = serializers.CharField(max_length=40, default="cash")
+    reference = serializers.CharField(max_length=120, allow_blank=True, required=False)
+    notes = serializers.CharField(allow_blank=True, required=False)
+
+    def validate(self, attrs):
+        portion = attrs["product"].portions.filter(active=True).order_by("created_at").first()
+        if not portion:
+            raise serializers.ValidationError({"product": "Este producto no tiene una unidad interna activa."})
+        attrs["portion"] = portion
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        partner = getattr(getattr(request, "user", None), "partner", None)
+        sale, payment = services.create_supplier_sale(
+            partner=partner,
+            supplier=validated_data["supplier"],
+            product=validated_data["product"],
+            portion=validated_data["portion"],
+            quantity=validated_data["quantity"],
+            unit_price=validated_data.get("unit_price"),
+            paid_amount=validated_data.get("paid_amount", Decimal("0.00")),
+            method=validated_data.get("method", "cash"),
+            reference=validated_data.get("reference", ""),
+            notes=validated_data.get("notes", ""),
+        )
+        return {"sale": sale, "payment": payment}
+
+    def to_representation(self, instance):
+        data = {"sale": SaleSerializer(instance["sale"], context=self.context).data}
+        if instance["payment"]:
+            data["payment"] = CustomerPaymentSerializer(instance["payment"], context=self.context).data
+        return data
 
 
 class OperationalExpenseSerializer(serializers.ModelSerializer):

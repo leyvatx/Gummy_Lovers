@@ -134,7 +134,7 @@ class PortionSize(BaseModel):
 
 class CustomerNode(BaseModel):
     class Kind(models.TextChoices):
-        WHOLESALE = "wholesale", "Cliente mayorista"
+        WHOLESALE = "wholesale", "Proveedor"
         DIRECT = "direct", "Venta directa"
 
     name = models.CharField(max_length=160, unique=True)
@@ -245,7 +245,7 @@ class InventoryLot(BaseModel):
 
 class Sale(BaseModel):
     class Channel(models.TextChoices):
-        WHOLESALE = "wholesale", "Mayoreo"
+        WHOLESALE = "wholesale", "Venta a proveedores"
         DIRECT = "direct", "Venta propia"
 
     class Status(models.TextChoices):
@@ -256,6 +256,13 @@ class Sale(BaseModel):
         CANCELLED = "cancelled", "Cancelada"
 
     customer = models.ForeignKey(CustomerNode, related_name="sales", on_delete=models.PROTECT)
+    supplier = models.ForeignKey(
+        Supplier,
+        null=True,
+        blank=True,
+        related_name="sales_received",
+        on_delete=models.PROTECT,
+    )
     channel = models.CharField(max_length=20, choices=Channel.choices, default=Channel.WHOLESALE, db_index=True)
     sold_by_partner = models.ForeignKey(
         Partner,
@@ -288,6 +295,7 @@ class Sale(BaseModel):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["customer", "status"]),
+            models.Index(fields=["supplier", "status"]),
             models.Index(fields=["channel", "status"]),
             models.Index(fields=["sold_by_partner", "delivered_at"]),
             models.Index(fields=["delivered_at"]),

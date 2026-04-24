@@ -5,9 +5,11 @@ import { MetricCard } from '@/components/dashboard/metric-card'
 import { ProductAction, SupplierAction } from '@/components/forms/catalog-actions'
 import { DirectSaleAction } from '@/components/forms/direct-sale-action'
 import { ExpenseAction } from '@/components/forms/expense-action'
+import { SupplierSaleAction } from '@/components/forms/supplier-sale-action'
 import { AppSidebar, type AppSection } from '@/components/layout/app-sidebar'
 import { LoginScreen } from '@/components/login-screen'
 import { CatalogWorkspace } from '@/components/management/catalog-workspace'
+import { PartnersWorkspace } from '@/components/partners/partners-workspace'
 import { SalesFilters, type SaleChannelFilter, type SaleStatusFilter } from '@/components/sales/sales-filters'
 import { SalesWorkspace } from '@/components/sales/sales-workspace'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +60,9 @@ const sectionMeta: Record<AppSection, { title: string }> = {
   },
   sales: {
     title: 'Ventas',
+  },
+  partners: {
+    title: 'Socios',
   },
   products: {
     title: 'Productos',
@@ -432,9 +437,12 @@ function App() {
               onStatusChange={setSalesStatus}
               onChannelChange={setSalesChannel}
             />
+            <SupplierSaleAction suppliers={suppliers} products={products} onCreated={refreshData} />
             <DirectSaleAction user={user} products={products} onCreated={refreshData} />
           </>
         )
+      case 'partners':
+        return null
     }
   })()
 
@@ -590,6 +598,15 @@ function App() {
                 query={salesQuery}
                 status={salesStatus}
                 channel={salesChannel}
+                onChanged={refreshData}
+              />
+            ) : currentSection === 'partners' ? (
+              <PartnersWorkspace
+                partners={partners}
+                sales={sales}
+                suppliers={suppliers}
+                products={products}
+                dashboardPartners={snapshot.partners}
                 onChanged={refreshData}
               />
             ) : (

@@ -35,6 +35,7 @@ from apps.core.serializers import (
     ProductSerializer,
     SaleSerializer,
     SupplierSerializer,
+    SupplierSaleSerializer,
 )
 
 
@@ -158,7 +159,7 @@ class InventoryLotViewSet(viewsets.ModelViewSet):
 
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = (
-        Sale.objects.select_related("customer")
+        Sale.objects.select_related("customer", "supplier", "sold_by_partner")
         .prefetch_related("lines", "lines__inventory_allocations", "payment_allocations")
         .all()
     )
@@ -178,6 +179,14 @@ class SaleViewSet(viewsets.ModelViewSet):
 class DirectSaleAPIView(APIView):
     def post(self, request):
         serializer = DirectSaleSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SupplierSaleAPIView(APIView):
+    def post(self, request):
+        serializer = SupplierSaleSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)

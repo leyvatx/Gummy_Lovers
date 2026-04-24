@@ -24,5 +24,6 @@ urlpatterns = [
     path("auth/admins/", views.AdminProfilesAPIView.as_view(), name="auth-admins"),
     path("dashboard/financial/", views.FinancialDashboardAPIView.as_view(), name="financial-dashboard"),
     path("sales/direct/", views.DirectSaleAPIView.as_view(), name="direct-sale"),
+    path("sales/supplier/", views.SupplierSaleAPIView.as_view(), name="supplier-sale"),
     *router.urls,
 ]

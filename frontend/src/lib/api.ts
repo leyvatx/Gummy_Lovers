@@ -53,6 +53,8 @@ export type Partner = {
   code: string
   user: number | null
   name: string
+  initial_capital: MoneyValue
+  ownership_percent: MoneyValue
   active: boolean
 }
 
@@ -138,6 +140,8 @@ export type SaleRecord = {
   id: string
   customer: string
   customer_name: string
+  supplier: string | null
+  supplier_name: string
   channel: SaleChannel
   sold_by_partner: string | null
   sold_by_partner_name: string
@@ -394,6 +398,16 @@ export function deleteProduct(id: string) {
   })
 }
 
+export function updatePartner(id: string, payload: {
+  initial_capital: string
+  ownership_percent: string
+}) {
+  return request<Partner>(`/api/partners/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function updateSale(id: string, payload: {
   notes: string
 }) {
@@ -517,6 +531,21 @@ export function createDirectSale(payload: {
   reference: string
 }) {
   return request('/api/sales/direct/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function createSupplierSale(payload: {
+  supplier: string
+  product: string
+  quantity: number
+  unit_price: string
+  paid_amount: string
+  method: string
+  reference: string
+}) {
+  return request('/api/sales/supplier/', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
