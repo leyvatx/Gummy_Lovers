@@ -12,7 +12,6 @@ import { CatalogWorkspace } from '@/components/management/catalog-workspace'
 import { PartnersWorkspace } from '@/components/partners/partners-workspace'
 import { SalesFilters, type SaleChannelFilter, type SaleStatusFilter } from '@/components/sales/sales-filters'
 import { SalesWorkspace } from '@/components/sales/sales-workspace'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserMenu } from '@/components/user-menu'
@@ -538,12 +537,9 @@ function App() {
                       ) : (
                         snapshot.partners.map((partner) => (
                           <div key={partner.partner_id} className="rounded-2xl border bg-background/55 p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="font-medium">{partner.name}</p>
-                                <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
-                              </div>
-                              <Badge variant="secondary">{formatMoney(partner.net_partner_balance)}</Badge>
+                            <div>
+                              <p className="font-medium">{partner.name}</p>
+                              <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
                             </div>
                             <dl className="mt-4 grid gap-2 text-sm">
                               <div className="flex justify-between gap-3">
@@ -606,7 +602,6 @@ function App() {
                 sales={sales}
                 suppliers={suppliers}
                 products={products}
-                dashboardPartners={snapshot.partners}
                 onChanged={refreshData}
               />
             ) : (

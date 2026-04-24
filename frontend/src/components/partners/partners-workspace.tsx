@@ -18,7 +18,6 @@ import {
   toNumber,
   updatePartner,
   type ApiError,
-  type DashboardPartner,
   type Partner,
   type Product,
   type SaleRecord,
@@ -31,7 +30,6 @@ type PartnersWorkspaceProps = {
   sales: SaleRecord[]
   suppliers: Supplier[]
   products: Product[]
-  dashboardPartners: DashboardPartner[]
   onChanged: () => Promise<void>
 }
 
@@ -49,7 +47,6 @@ type PartnerStats = {
 
 type PartnerRow = {
   partner: Partner
-  finance: DashboardPartner | null
   supplierProfiles: Supplier[]
   stats: PartnerStats
 }
@@ -243,14 +240,12 @@ function PartnersWorkspace({
   sales,
   suppliers,
   products,
-  dashboardPartners,
   onChanged,
 }: PartnersWorkspaceProps) {
   const partnerContextMenu = useRowContextMenu()
 
   const rows = useMemo<PartnerRow[]>(() => {
     const productsById = new Map(products.map((product) => [product.id, product]))
-    const financeByPartnerId = new Map(dashboardPartners.map((partner) => [partner.partner_id, partner]))
 
     return partners.map((partner) => {
       const partnerSales = sales.filter((sale) => sale.sold_by_partner === partner.id)
@@ -262,7 +257,6 @@ function PartnersWorkspace({
 
       return {
         partner,
-        finance: financeByPartnerId.get(partner.id) ?? null,
         supplierProfiles: suppliers.filter((supplier) => supplier.partner === partner.id),
         stats: {
           directCount: directSales.length,
@@ -275,7 +269,7 @@ function PartnersWorkspace({
         },
       }
     })
-  }, [dashboardPartners, partners, products, sales, suppliers])
+  }, [partners, products, sales, suppliers])
 
   const totals = rows.reduce(
     (acc, row) => ({
@@ -322,7 +316,6 @@ function PartnersWorkspace({
                       <FieldRow label="Venta propia" value={`${formatMoney(row.stats.directRevenue)} · ${unitsLabel(row.stats.directUnits)}`} />
                       <FieldRow label="Extra propia" value={<span className="font-semibold tabular-nums">{formatMoney(row.stats.directExtra)}</span>} />
                       <FieldRow label="Venta a proveedores" value={`${formatMoney(row.stats.wholesaleRevenue)} · ${unitsLabel(row.stats.wholesaleUnits)}`} />
-                      <FieldRow label="Balance" value={<span className="font-semibold tabular-nums">{formatMoney(row.finance?.net_partner_balance ?? 0)}</span>} />
                     </dl>
                     <PartnerContextActions row={row} menuTarget={partnerContextMenu.target} onCloseMenu={partnerContextMenu.close} onChanged={onChanged} />
                   </article>
@@ -330,7 +323,7 @@ function PartnersWorkspace({
               </div>
 
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[980px] text-left text-sm">
+                <table className="w-full min-w-[860px] text-left text-sm">
                   <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Socio</th>
@@ -338,7 +331,6 @@ function PartnersWorkspace({
                       <th className="px-4 py-3 font-medium">Venta propia</th>
                       <th className="px-4 py-3 font-medium">Extra propia</th>
                       <th className="px-4 py-3 font-medium">Venta a proveedores</th>
-                      <th className="px-4 py-3 font-medium">Balance</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -359,9 +351,6 @@ function PartnersWorkspace({
                         <td className="px-4 py-4">
                           <div className="font-semibold tabular-nums">{formatMoney(row.stats.wholesaleRevenue)}</div>
                           <div className="text-xs text-muted-foreground">{unitsLabel(row.stats.wholesaleUnits)}</div>
-                        </td>
-                        <td className="px-4 py-4 font-semibold tabular-nums">
-                          {formatMoney(row.finance?.net_partner_balance ?? 0)}
                           <PartnerContextActions row={row} menuTarget={partnerContextMenu.target} onCloseMenu={partnerContextMenu.close} onChanged={onChanged} />
                         </td>
                       </tr>
