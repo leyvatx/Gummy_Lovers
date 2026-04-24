@@ -379,8 +379,17 @@ def _allocate_profit(payment, amount):
         return
 
     partners = _active_partners_for_profit()
-    first_share = money(amount / Decimal("2"))
-    shares = [first_share, money(amount - first_share)]
+    total_percent = sum(partner.ownership_percent for partner in partners)
+    if total_percent <= 0:
+        raise ValidationError({"partners": "El porcentaje de propiedad debe ser mayor a cero."})
+
+    remaining = amount
+    shares = []
+    for partner in partners[:-1]:
+        share = money(amount * partner.ownership_percent / total_percent)
+        shares.append(share)
+        remaining = money(remaining - share)
+    shares.append(remaining)
 
     for partner, share in zip(partners, shares, strict=True):
         if share <= 0:

@@ -15,6 +15,7 @@ import { UserMenu } from '@/components/user-menu'
 import {
   getCurrentUser,
   getFinancialSnapshot,
+  getPartners,
   getProducts,
   getSuppliers,
   hasStoredAuthToken,
@@ -22,6 +23,7 @@ import {
   type ApiError,
   type AuthUser,
   type FinancialSnapshot,
+  type Partner,
   type Product,
   type Supplier,
 } from '@/lib/api'
@@ -104,6 +106,7 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(hasStoredAuthToken)
   const [snapshot, setSnapshot] = useState<FinancialSnapshot>(emptySnapshot)
+  const [partners, setPartners] = useState<Partner[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -114,6 +117,7 @@ function App() {
   const clearAuthState = useCallback(() => {
     setUser(null)
     setSnapshot(emptySnapshot)
+    setPartners([])
     setSuppliers([])
     setProducts([])
     setIsLoading(false)
@@ -207,14 +211,16 @@ function App() {
   }, [])
 
   const fetchWorkspaceData = useCallback(async () => {
-    const [financialData, supplierData, productData] = await Promise.all([
+    const [financialData, partnerData, supplierData, productData] = await Promise.all([
       getFinancialSnapshot(),
+      getPartners(),
       getSuppliers(),
       getProducts(),
     ])
 
     return {
       financialData,
+      partnerData,
       productData,
       supplierData,
     }
@@ -238,9 +244,10 @@ function App() {
       }
 
       try {
-        const { financialData, productData, supplierData } = await fetchWorkspaceData()
+        const { financialData, partnerData, productData, supplierData } = await fetchWorkspaceData()
 
         setSnapshot(financialData)
+        setPartners(partnerData)
         setSuppliers(supplierData)
         setProducts(productData)
         setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
@@ -350,7 +357,7 @@ function App() {
       {
         title: 'Ganancia neta',
         value: formatMoney(snapshot.net_profit_available),
-        helper: 'Utilidad disponible 50/50',
+        helper: 'Utilidad según porcentaje de socio',
         icon: Candy,
         tone: 'emerald' as const,
       },
@@ -396,7 +403,7 @@ function App() {
           </>
         )
       case 'suppliers':
-        return <SupplierAction onCreated={refreshData} />
+        return <SupplierAction partners={partners} onCreated={refreshData} />
       case 'products':
         return <ProductAction suppliers={suppliers} onCreated={refreshData} />
     }
@@ -551,8 +558,10 @@ function App() {
             ) : (
               <CatalogWorkspace
                 section={currentSection}
+                partners={partners}
                 products={products}
                 suppliers={suppliers}
+                onChanged={refreshData}
               />
             )}
           </div>

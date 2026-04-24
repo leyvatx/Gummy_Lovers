@@ -27,6 +27,7 @@ import {
   createProduct,
   createSupplier,
   type ApiError,
+  type Partner,
   type Supplier,
 } from '@/lib/api'
 import { todayInputValue } from '@/lib/format'
@@ -35,7 +36,9 @@ type SharedActionProps = {
   onCreated: () => Promise<void>
 }
 
-type SupplierActionProps = SharedActionProps
+type SupplierActionProps = SharedActionProps & {
+  partners: Partner[]
+}
 
 type ProductActionProps = SharedActionProps & {
   suppliers: Supplier[]
@@ -66,9 +69,10 @@ const CreateTrigger = React.forwardRef<HTMLButtonElement, React.ComponentPropsWi
 )
 CreateTrigger.displayName = 'CreateTrigger'
 
-function SupplierAction({ onCreated }: SupplierActionProps) {
+function SupplierAction({ partners, onCreated }: SupplierActionProps) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [partner, setPartner] = useState('none')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -80,9 +84,15 @@ function SupplierAction({ onCreated }: SupplierActionProps) {
     setIsSaving(true)
 
     try {
-      await createSupplier({ name, phone, notes })
+      await createSupplier({
+        name,
+        partner: partner === 'none' ? '' : partner,
+        phone,
+        notes,
+      })
       setOpen(false)
       setName('')
+      setPartner('none')
       setPhone('')
       setNotes('')
       await onCreated()
@@ -101,7 +111,7 @@ function SupplierAction({ onCreated }: SupplierActionProps) {
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Agregar proveedor</SheetTitle>
-          <SheetDescription>Guarda el contacto de quien entrega producto.</SheetDescription>
+          <SheetDescription>Guarda a quien venderá producto y pagará precio de mayoreo.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -113,6 +123,23 @@ function SupplierAction({ onCreated }: SupplierActionProps) {
           <div className="grid gap-2">
             <Label htmlFor="supplier-phone">Teléfono</Label>
             <Input id="supplier-phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="supplier-partner">Socio vinculado</Label>
+            <Select value={partner} onValueChange={setPartner}>
+              <SelectTrigger id="supplier-partner">
+                <SelectValue placeholder="Sin socio vinculado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin socio vinculado</SelectItem>
+                {partners.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
@@ -136,6 +163,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
   const [sku, setSku] = useState('')
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('0')
+  const [wholesalePrice, setWholesalePrice] = useState('0')
   const [unitCost, setUnitCost] = useState('0')
   const [supplier, setSupplier] = useState('none')
   const [isSaving, setIsSaving] = useState(false)
@@ -150,6 +178,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       const product = await createProduct({
         sku,
         name,
+        wholesale_price: wholesalePrice,
         grams_per_piece: '1',
       })
 
@@ -177,6 +206,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       setSku('')
       setName('')
       setQuantity('0')
+      setWholesalePrice('0')
       setUnitCost('0')
       setSupplier('none')
       await onCreated()
@@ -195,7 +225,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Agregar producto</SheetTitle>
-          <SheetDescription>Registra la gomita y, si aplica, su existencia inicial.</SheetDescription>
+          <SheetDescription>Registra la gomita, su precio de mayoreo y existencia inicial.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -224,6 +254,21 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="product-wholesale-price">Precio de mayoreo</Label>
+              <Input
+                id="product-wholesale-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={wholesalePrice}
+                onChange={(event) => setWholesalePrice(event.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 min-[420px]:grid-cols-2">
+            <div className="grid gap-2">
               <Label htmlFor="product-cost">Costo por pieza</Label>
               <Input
                 id="product-cost"
@@ -235,23 +280,22 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
                 required
               />
             </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="product-supplier">Proveedor</Label>
-            <Select value={supplier} onValueChange={setSupplier}>
-              <SelectTrigger id="product-supplier">
-                <SelectValue placeholder="Selecciona proveedor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin proveedor</SelectItem>
-                {suppliers.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid gap-2">
+              <Label htmlFor="product-supplier">Proveedor inicial</Label>
+              <Select value={supplier} onValueChange={setSupplier}>
+                <SelectTrigger id="product-supplier">
+                  <SelectValue placeholder="Selecciona proveedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin proveedor</SelectItem>
+                  {suppliers.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}

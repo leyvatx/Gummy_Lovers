@@ -27,8 +27,11 @@ export type FinancialSnapshot = {
 export type Supplier = {
   id: string
   name: string
+  partner: string | null
+  partner_name: string
   phone: string
   notes: string
+  active: boolean
 }
 
 export type Customer = {
@@ -67,6 +70,7 @@ export type Product = {
   id: string
   sku: string
   name: string
+  wholesale_price: MoneyValue
   grams_per_piece: MoneyValue
   active: boolean
   available_grams: MoneyValue
@@ -260,7 +264,7 @@ export async function logout() {
 
 export function getCurrentUser() {
   if (!getStoredAuthToken()) {
-    throw { message: 'Sesion no iniciada.', status: 401 } satisfies ApiError
+    throw { message: 'Sesión no iniciada.', status: 401 } satisfies ApiError
   }
 
   return request<AuthUser>('/api/auth/me/')
@@ -271,7 +275,7 @@ export function getFinancialSnapshot() {
 }
 
 export async function getSuppliers() {
-  const payload = await request<Supplier[] | { results?: Supplier[] }>('/api/suppliers/')
+  const payload = await request<Supplier[] | { results?: Supplier[] }>('/api/suppliers/?active=true')
   return normalizeList(payload)
 }
 
@@ -306,23 +310,60 @@ export async function getPartners() {
 
 export function createSupplier(payload: {
   name: string
+  partner?: string
   phone: string
   notes: string
 }) {
   return request<Supplier>('/api/suppliers/', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, partner: payload.partner || null, active: true }),
   })
 }
 
 export function createProduct(payload: {
   sku: string
   name: string
+  wholesale_price: string
   grams_per_piece: string
 }) {
   return request<Product>('/api/products/', {
     method: 'POST',
     body: JSON.stringify({ ...payload, active: true }),
+  })
+}
+
+export function updateSupplier(id: string, payload: {
+  name: string
+  partner?: string
+  phone: string
+  notes: string
+}) {
+  return request<Supplier>(`/api/suppliers/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ ...payload, partner: payload.partner || null }),
+  })
+}
+
+export function deleteSupplier(id: string) {
+  return request<void>(`/api/suppliers/${id}/`, {
+    method: 'DELETE',
+  })
+}
+
+export function updateProduct(id: string, payload: {
+  sku: string
+  name: string
+  wholesale_price: string
+}) {
+  return request<Product>(`/api/products/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteProduct(id: string) {
+  return request<void>(`/api/products/${id}/`, {
+    method: 'DELETE',
   })
 }
 

@@ -58,9 +58,18 @@ class PartnerViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
         return self.filter_active(super().get_queryset())
 
 
-class SupplierViewSet(viewsets.ModelViewSet):
-    queryset = Supplier.objects.all()
+class SupplierViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
+    queryset = Supplier.objects.select_related("partner").all()
     serializer_class = SupplierSerializer
+
+    def get_queryset(self):
+        return self.filter_active(super().get_queryset())
+
+    def destroy(self, request, *args, **kwargs):
+        supplier = self.get_object()
+        supplier.active = False
+        supplier.save(update_fields=["active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
@@ -69,6 +78,12 @@ class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         return self.filter_active(super().get_queryset())
+
+    def destroy(self, request, *args, **kwargs):
+        product = self.get_object()
+        product.active = False
+        product.save(update_fields=["active", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PortionSizeViewSet(ActiveFilterMixin, viewsets.ModelViewSet):

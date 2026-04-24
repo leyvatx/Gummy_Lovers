@@ -66,19 +66,34 @@ class Partner(FullCleanOnSaveMixin, BaseModel):
 
 class Supplier(BaseModel):
     name = models.CharField(max_length=160, unique=True)
+    partner = models.ForeignKey(
+        Partner,
+        null=True,
+        blank=True,
+        related_name="supplier_profiles",
+        on_delete=models.SET_NULL,
+    )
     phone = models.CharField(max_length=40, blank=True)
     notes = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
         ordering = ["name"]
+        indexes = [models.Index(fields=["active", "name"])]
 
 
 class Product(BaseModel):
     sku = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=160)
+    wholesale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     grams_per_piece = models.DecimalField(
         max_digits=10,
         decimal_places=4,
@@ -92,6 +107,9 @@ class Product(BaseModel):
     class Meta:
         ordering = ["name"]
         indexes = [models.Index(fields=["sku", "active"])]
+        constraints = [
+            models.CheckConstraint(condition=Q(wholesale_price__gte=0), name="product_wholesale_price_gte_0"),
+        ]
 
 
 class PortionSize(BaseModel):

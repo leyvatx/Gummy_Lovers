@@ -46,10 +46,12 @@ class PartnerSerializer(serializers.ModelSerializer):
 
 
 class SupplierSerializer(serializers.ModelSerializer):
+    partner_name = serializers.CharField(source="partner.name", read_only=True)
+
     class Meta:
         model = Supplier
-        fields = ["id", "name", "phone", "notes", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = ["id", "name", "partner", "partner_name", "phone", "notes", "active", "created_at", "updated_at"]
+        read_only_fields = ["id", "partner_name", "created_at", "updated_at"]
 
 
 class PortionSizeSerializer(serializers.ModelSerializer):
@@ -82,6 +84,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "id",
             "sku",
             "name",
+            "wholesale_price",
             "grams_per_piece",
             "active",
             "available_grams",
