@@ -526,47 +526,7 @@ function App() {
                   ))}
                 </section>
 
-                <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
-                  <Card>
-                    <CardHeader className="border-b">
-                      <CardTitle>Socios</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 pt-4 sm:pt-5">
-                      {snapshot.partners.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin socios activos registrados.</p>
-                      ) : (
-                        snapshot.partners.map((partner) => (
-                          <div key={partner.partner_id} className="rounded-2xl border bg-background/55 p-4">
-                            <div>
-                              <p className="font-medium">{partner.name}</p>
-                              <p className="text-xs text-muted-foreground">Socio {partner.code}</p>
-                            </div>
-                            <dl className="mt-4 grid gap-2 text-sm">
-                              <div className="flex justify-between gap-3">
-                                <dt className="text-muted-foreground">Reembolso disponible</dt>
-                                <dd className="font-medium tabular-nums">
-                                  {formatMoney(partner.reimbursements_available_to_payout)}
-                                </dd>
-                              </div>
-                              <div className="flex justify-between gap-3">
-                                <dt className="text-muted-foreground">Utilidad disponible</dt>
-                                <dd className="font-medium tabular-nums">
-                                  {formatMoney(partner.profit_available_to_payout)}
-                                </dd>
-                              </div>
-                              <div className="flex justify-between gap-3">
-                                <dt className="text-muted-foreground">Gastos pendientes</dt>
-                                <dd className="font-medium tabular-nums">
-                                  {formatMoney(partner.reimbursements_pending_to_allocate)}
-                                </dd>
-                              </div>
-                            </dl>
-                          </div>
-                        ))
-                      )}
-                    </CardContent>
-                  </Card>
-
+                <section className="grid gap-5">
                   <Card>
                     <CardHeader className="border-b">
                       <CardTitle>Resumen</CardTitle>
