@@ -67,6 +67,7 @@ class PortionSizeSerializer(serializers.ModelSerializer):
             "product_name",
             "name",
             "pieces_per_portion",
+            "recovery_price",
             "active",
             "created_at",
             "updated_at",
@@ -96,6 +97,16 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_available_grams(self, obj):
         return services.sum_grams(obj.lots.all(), "remaining_grams")
+
+    def create(self, validated_data):
+        product = super().create(validated_data)
+        services.ensure_fixed_sale_portions(product)
+        return product
+
+    def update(self, instance, validated_data):
+        product = super().update(instance, validated_data)
+        services.ensure_fixed_sale_portions(product)
+        return product
 
 
 class CustomerPriceSerializer(serializers.ModelSerializer):
@@ -234,7 +245,9 @@ class SaleLineSerializer(serializers.ModelSerializer):
             "grams_per_piece_snapshot",
             "total_grams",
             "unit_price",
+            "recovery_unit_price_snapshot",
             "line_total",
+            "recovery_amount",
             "cogs_amount",
             "inventory_allocations",
             "created_at",
@@ -325,6 +338,7 @@ class SaleSerializer(serializers.ModelSerializer):
 class SupplierSaleSerializer(serializers.Serializer):
     supplier = serializers.PrimaryKeyRelatedField(queryset=Supplier.objects.filter(active=True))
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(active=True))
+    portion = serializers.PrimaryKeyRelatedField(queryset=PortionSize.objects.filter(active=True))
     quantity = serializers.IntegerField(min_value=1)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False)
     paid_amount = serializers.DecimalField(
@@ -338,10 +352,8 @@ class SupplierSaleSerializer(serializers.Serializer):
     notes = serializers.CharField(allow_blank=True, required=False)
 
     def validate(self, attrs):
-        portion = attrs["product"].portions.filter(active=True).order_by("created_at").first()
-        if not portion:
-            raise serializers.ValidationError({"product": "Este producto no tiene una unidad interna activa."})
-        attrs["portion"] = portion
+        if attrs["portion"].product_id != attrs["product"].id:
+            raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
         return attrs
 
     def create(self, validated_data):

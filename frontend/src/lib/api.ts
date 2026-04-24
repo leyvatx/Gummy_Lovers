@@ -65,6 +65,7 @@ export type PortionSize = {
   product_name: string
   name: string
   pieces_per_portion: number
+  recovery_price: MoneyValue
   active: boolean
 }
 
@@ -132,7 +133,9 @@ export type SaleLine = {
   portion_name: string
   portions_qty: number
   unit_price: MoneyValue
+  recovery_unit_price_snapshot: MoneyValue
   line_total: MoneyValue
+  recovery_amount: MoneyValue
   cogs_amount: MoneyValue
 }
 
@@ -384,7 +387,7 @@ export function deleteSupplier(id: string) {
 export function updateProduct(id: string, payload: {
   sku: string
   name: string
-  wholesale_price: string
+  wholesale_price?: string
 }) {
   return request<Product>(`/api/products/${id}/`, {
     method: 'PATCH',
@@ -427,6 +430,7 @@ export function createPortion(payload: {
   product: string
   name: string
   pieces_per_portion: number
+  recovery_price?: string
 }) {
   return request<PortionSize>('/api/portions/', {
     method: 'POST',
@@ -539,6 +543,7 @@ export function createDirectSale(payload: {
 export function createSupplierSale(payload: {
   supplier: string
   product: string
+  portion: string
   quantity: number
   unit_price: string
   paid_amount: string

@@ -116,6 +116,12 @@ class PortionSize(BaseModel):
     product = models.ForeignKey(Product, related_name="portions", on_delete=models.PROTECT)
     name = models.CharField(max_length=40)
     pieces_per_portion = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    recovery_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -327,9 +333,21 @@ class SaleLine(FullCleanOnSaveMixin, BaseModel):
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0.00"))],
     )
+    recovery_unit_price_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     line_total = models.DecimalField(
         max_digits=14,
         decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    recovery_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
         validators=[MinValueValidator(Decimal("0.00"))],
     )
     cogs_amount = models.DecimalField(
@@ -350,6 +368,8 @@ class SaleLine(FullCleanOnSaveMixin, BaseModel):
         constraints = [
             models.CheckConstraint(condition=Q(total_grams__gt=0), name="sale_line_total_grams_gt_0"),
             models.CheckConstraint(condition=Q(line_total__gte=0), name="sale_line_total_gte_0"),
+            models.CheckConstraint(condition=Q(recovery_unit_price_snapshot__gte=0), name="sale_line_recovery_unit_gte_0"),
+            models.CheckConstraint(condition=Q(recovery_amount__gte=0), name="sale_line_recovery_amount_gte_0"),
             models.CheckConstraint(condition=Q(cogs_amount__gte=0), name="sale_line_cogs_gte_0"),
         ]
 

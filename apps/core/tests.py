@@ -67,6 +67,8 @@ class CoreServiceTests(TestCase):
         self.assertEqual(line.total_grams, Decimal("150.000"))
         self.assertEqual(lot.remaining_grams, Decimal("850.000"))
         self.assertEqual(line.cogs_amount, Decimal("75.00"))
+        self.assertEqual(line.recovery_unit_price_snapshot, Decimal("15.00"))
+        self.assertEqual(line.recovery_amount, Decimal("150.00"))
 
     def test_payment_smart_split_prioritizes_expense_then_inventory_then_profit(self):
         sale = services.create_sale(
@@ -96,11 +98,11 @@ class CoreServiceTests(TestCase):
         )
         self.assertEqual(
             services.sum_amount(allocations.filter(type=SmartSplitAllocation.Type.INVENTORY_RESERVE)),
-            Decimal("75.00"),
+            Decimal("150.00"),
         )
         self.assertEqual(
             services.sum_amount(allocations.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT)),
-            Decimal("175.00"),
+            Decimal("100.00"),
         )
         self.assertEqual(CustomerPayment.objects.count(), 1)
         sale.refresh_from_db()
@@ -129,13 +131,41 @@ class CoreServiceTests(TestCase):
             services.sum_amount(
                 SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.INVENTORY_RESERVE)
             ),
-            Decimal("30.00"),
+            Decimal("60.00"),
         )
         self.assertEqual(
             services.sum_amount(
                 SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT)
             ),
-            Decimal("70.00"),
+            Decimal("40.00"),
+        )
+
+    def test_direct_sale_below_fixed_recovery_records_loss(self):
+        sale, payment = services.create_direct_sale(
+            partner=self.partner_a,
+            product=self.product,
+            portion=self.small,
+            portions_qty=1,
+            unit_price=Decimal("10.00"),
+            method="cash",
+        )
+
+        line = sale.lines.get()
+
+        self.assertEqual(line.recovery_unit_price_snapshot, Decimal("15.00"))
+        self.assertEqual(line.recovery_amount, Decimal("15.00"))
+        self.assertEqual(payment.amount, Decimal("10.00"))
+        self.assertEqual(
+            services.sum_amount(
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.INVENTORY_RESERVE)
+            ),
+            Decimal("10.00"),
+        )
+        self.assertEqual(
+            services.sum_amount(
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT)
+            ),
+            Decimal("0.00"),
         )
 
 

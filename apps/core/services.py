@@ -23,6 +23,10 @@ from apps.core.models import (
 
 MONEY_QUANT = Decimal("0.01")
 GRAM_QUANT = Decimal("0.001")
+G1_RECOVERY_PRICE = Decimal("15.00")
+G2_RECOVERY_PRICE = Decimal("30.00")
+G1_PORTION_NAMES = {"g1", "chico", "chica", "unidad"}
+G2_PORTION_NAMES = {"g2", "grande"}
 
 
 def money(value):
@@ -41,6 +45,49 @@ def sum_amount(queryset, field="amount"):
 def sum_grams(queryset, field="remaining_grams"):
     value = queryset.aggregate(total=Sum(field))["total"]
     return grams(value or Decimal("0.000"))
+
+
+def normalized_portion_name(value):
+    return (value or "").strip().lower().replace(" ", "").replace("-", "")
+
+
+def fixed_recovery_price_for_name(name):
+    normalized_name = normalized_portion_name(name)
+    if normalized_name in G1_PORTION_NAMES:
+        return money(G1_RECOVERY_PRICE)
+    if normalized_name in G2_PORTION_NAMES:
+        return money(G2_RECOVERY_PRICE)
+    return money(0)
+
+
+def recovery_price_for_portion(portion):
+    configured_price = money(getattr(portion, "recovery_price", Decimal("0.00")))
+    if configured_price > 0:
+        return configured_price
+    return fixed_recovery_price_for_name(portion.name)
+
+
+def ensure_fixed_sale_portions(product):
+    PortionModel = product.portions.model
+    for name, recovery_price in (("G1", G1_RECOVERY_PRICE), ("G2", G2_RECOVERY_PRICE)):
+        portion, _ = PortionModel.objects.get_or_create(
+            product=product,
+            name=name,
+            defaults={
+                "pieces_per_portion": 1,
+                "recovery_price": recovery_price,
+                "active": True,
+            },
+        )
+        changed_fields = []
+        if portion.recovery_price != recovery_price:
+            portion.recovery_price = recovery_price
+            changed_fields.append("recovery_price")
+        if not portion.active:
+            portion.active = True
+            changed_fields.append("active")
+        if changed_fields:
+            portion.save(update_fields=[*changed_fields, "updated_at"])
 
 
 def sale_paid_amount(sale):
@@ -176,6 +223,8 @@ def create_sale(
         )
         total_grams = grams(Decimal(portions_qty) * Decimal(portion.pieces_per_portion) * product.grams_per_piece)
         line_total = money(Decimal(portions_qty) * unit_price)
+        recovery_unit_price = recovery_price_for_portion(portion)
+        recovery_amount = money(Decimal(portions_qty) * recovery_unit_price)
 
         sale_line = SaleLine.objects.create(
             sale=sale,
@@ -186,7 +235,9 @@ def create_sale(
             grams_per_piece_snapshot=product.grams_per_piece,
             total_grams=total_grams,
             unit_price=unit_price,
+            recovery_unit_price_snapshot=recovery_unit_price,
             line_total=line_total,
+            recovery_amount=recovery_amount,
             cogs_amount=Decimal("0.00"),
         )
 
@@ -317,7 +368,7 @@ def create_supplier_sale(
 
     delivered_at = delivered_at or timezone.now()
     customer = _wholesale_customer_for_supplier(supplier)
-    price = money(unit_price if unit_price is not None else product.wholesale_price)
+    price = money(unit_price if unit_price is not None else recovery_price_for_portion(portion))
 
     sale = create_sale(
         customer=customer,
@@ -447,7 +498,7 @@ def _outstanding_inventory_reserves():
         paid_ratio = min(paid / sale.total_amount, Decimal("1.00"))
 
         for line in sale.lines.all():
-            eligible_cogs = line.cogs_amount if fully_paid else money(line.cogs_amount * paid_ratio)
+            eligible_cogs = line.recovery_amount if fully_paid else money(line.recovery_amount * paid_ratio)
             reserved = sum_amount(
                 SmartSplitAllocation.objects.filter(
                     type=SmartSplitAllocation.Type.INVENTORY_RESERVE,

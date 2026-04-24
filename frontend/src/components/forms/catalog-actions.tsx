@@ -23,7 +23,6 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   createInventoryLot,
-  createPortion,
   createProduct,
   createSupplier,
   type ApiError,
@@ -163,7 +162,6 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
   const [sku, setSku] = useState('')
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('0')
-  const [wholesalePrice, setWholesalePrice] = useState('0')
   const [unitCost, setUnitCost] = useState('0')
   const [supplier, setSupplier] = useState('none')
   const [isSaving, setIsSaving] = useState(false)
@@ -178,14 +176,8 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       const product = await createProduct({
         sku,
         name,
-        wholesale_price: wholesalePrice,
+        wholesale_price: '0',
         grams_per_piece: '1',
-      })
-
-      await createPortion({
-        product: product.id,
-        name: 'Unidad',
-        pieces_per_portion: 1,
       })
 
       const initialQuantity = Number(quantity)
@@ -206,7 +198,6 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       setSku('')
       setName('')
       setQuantity('0')
-      setWholesalePrice('0')
       setUnitCost('0')
       setSupplier('none')
       await onCreated()
@@ -225,7 +216,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Agregar producto</SheetTitle>
-          <SheetDescription>Registra la gomita, su precio de mayoreo y existencia inicial.</SheetDescription>
+          <SheetDescription>Registra la gomita y su existencia inicial. G1 recupera $15 y G2 recupera $30.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -240,31 +231,17 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
             </div>
           </div>
 
-          <div className="grid gap-3 min-[420px]:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="product-quantity">Existencia inicial</Label>
-              <Input
-                id="product-quantity"
-                type="number"
-                min="0"
-                step="1"
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="product-wholesale-price">Precio de mayoreo</Label>
-              <Input
-                id="product-wholesale-price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={wholesalePrice}
-                onChange={(event) => setWholesalePrice(event.target.value)}
-                required
-              />
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="product-quantity">Existencia inicial</Label>
+            <Input
+              id="product-quantity"
+              type="number"
+              min="0"
+              step="1"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              required
+            />
           </div>
 
           <div className="grid gap-3 min-[420px]:grid-cols-2">

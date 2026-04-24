@@ -35,6 +35,7 @@ import {
   type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { recoveryPriceForPortion, salePortions } from '@/lib/sale-units'
 import { cn } from '@/lib/utils'
 
 type CatalogWorkspaceProps = {
@@ -94,6 +95,18 @@ function productStatus(availableUnits: number) {
     label: 'Disponible',
     className: 'border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-400/20 dark:bg-pink-400/10 dark:text-pink-100',
   }
+}
+
+function fixedRecoverySummary(product: Product) {
+  const prices = salePortions(product)
+    .map((portion) => recoveryPriceForPortion(portion))
+    .filter((price, index, list) => price > 0 && list.indexOf(price) === index)
+
+  if (prices.length === 0) {
+    return `${formatMoney(15)} / ${formatMoney(30)}`
+  }
+
+  return prices.map((price) => formatMoney(price)).join(' / ')
 }
 
 function SectionToolbar({
@@ -313,7 +326,6 @@ function ProductContextActions({
   const [mode, setMode] = useState<RowMode>(null)
   const [sku, setSku] = useState(product.sku)
   const [name, setName] = useState(product.name)
-  const [wholesalePrice, setWholesalePrice] = useState(String(product.wholesale_price))
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -326,7 +338,6 @@ function ProductContextActions({
       await updateProduct(product.id, {
         sku,
         name,
-        wholesale_price: wholesalePrice,
       })
       setMode(null)
       await onChanged()
@@ -349,7 +360,6 @@ function ProductContextActions({
   function openEdit() {
     setSku(product.sku)
     setName(product.name)
-    setWholesalePrice(String(product.wholesale_price))
     setError('')
     setMode('edit')
   }
@@ -377,7 +387,7 @@ function ProductContextActions({
               </SheetHeader>
               <dl className="grid gap-3 text-sm">
                 <FieldRow label="SKU" value={product.sku} />
-                <FieldRow label="Precio de mayoreo" value={<span className="tabular-nums">{formatMoney(product.wholesale_price)}</span>} />
+                <FieldRow label="Recuperado fijo" value={<span className="tabular-nums">{fixedRecoverySummary(product)}</span>} />
                 <FieldRow label="Existencia" value={<span className="tabular-nums">{formatUnits(product.available_grams)}</span>} />
               </dl>
             </>
@@ -387,7 +397,7 @@ function ProductContextActions({
             <>
               <SheetHeader>
                 <SheetTitle>Editar producto</SheetTitle>
-                <SheetDescription>Actualiza la gomita y su precio de mayoreo.</SheetDescription>
+                <SheetDescription>Actualiza la gomita. G1 recupera $15 y G2 recupera $30.</SheetDescription>
               </SheetHeader>
               <form className="grid gap-4 pb-6" onSubmit={handleEdit}>
                 <div className="grid gap-3 min-[420px]:grid-cols-[140px_minmax(0,1fr)]">
@@ -399,18 +409,6 @@ function ProductContextActions({
                     <Label htmlFor={`product-name-${product.id}`}>Nombre</Label>
                     <Input id={`product-name-${product.id}`} value={name} onChange={(event) => setName(event.target.value)} required />
                   </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor={`product-price-${product.id}`}>Precio de mayoreo</Label>
-                  <Input
-                    id={`product-price-${product.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={wholesalePrice}
-                    onChange={(event) => setWholesalePrice(event.target.value)}
-                    required
-                  />
                 </div>
                 {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
                 <Button type="submit" disabled={isSaving}>
@@ -574,7 +572,7 @@ function ProductsSection({
                         </div>
                       </div>
                       <dl className="mt-4 grid gap-2 text-sm">
-                        <FieldRow label="Precio de mayoreo" value={<span className="font-semibold tabular-nums">{formatMoney(product.wholesale_price)}</span>} />
+                        <FieldRow label="Recuperado fijo" value={<span className="font-semibold tabular-nums">{fixedRecoverySummary(product)}</span>} />
                         <FieldRow label="Existencia" value={<span className="font-semibold tabular-nums">{formatUnits(product.available_grams)}</span>} />
                       </dl>
                       <ProductContextActions
@@ -594,7 +592,7 @@ function ProductsSection({
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Producto</th>
                       <th className="px-4 py-3 font-medium">SKU</th>
-                      <th className="px-4 py-3 font-medium">Precio de mayoreo</th>
+                      <th className="px-4 py-3 font-medium">Recuperado fijo</th>
                       <th className="px-4 py-3 font-medium">Existencia</th>
                       <th className="px-4 py-3 font-medium">Estado</th>
                     </tr>
@@ -607,7 +605,7 @@ function ProductsSection({
                         <tr key={product.id} className="border-t transition-colors hover:bg-muted/40" {...productContextMenu.getTargetProps(product.id)}>
                           <td className="px-4 py-4 font-medium sm:px-5">{product.name}</td>
                           <td className="px-4 py-4 text-muted-foreground">{product.sku}</td>
-                          <td className="px-4 py-4 font-semibold tabular-nums">{formatMoney(product.wholesale_price)}</td>
+                          <td className="px-4 py-4 font-semibold tabular-nums">{fixedRecoverySummary(product)}</td>
                           <td className="px-4 py-4 font-semibold tabular-nums">{formatUnits(product.available_grams)}</td>
                           <td className="px-4 py-4">
                             <Badge variant="outline" className={status.className}>

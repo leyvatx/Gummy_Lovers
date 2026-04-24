@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useMemo, useState } from 'react'
 import { Store } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/sheet'
 import { createSupplierSale, toNumber, type ApiError, type Product, type Supplier } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { recoveryPriceForPortion, salePortionLabel, salePortions } from '@/lib/sale-units'
 
 type SupplierSaleActionProps = {
   products: Product[]
@@ -44,6 +45,7 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
   const [open, setOpen] = useState(false)
   const [supplier, setSupplier] = useState('')
   const [product, setProduct] = useState('')
+  const [portion, setPortion] = useState('')
   const [quantityValue, setQuantityValue] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
   const [paidAmount, setPaidAmount] = useState('0')
@@ -52,9 +54,20 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const selectedProduct = useMemo(
+    () => products.find((item) => item.id === product),
+    [product, products],
+  )
+  const availablePortions = useMemo(() => salePortions(selectedProduct), [selectedProduct])
+  const selectedUnit = useMemo(
+    () => availablePortions.find((item) => item.id === portion) ?? null,
+    [availablePortions, portion],
+  )
   const quantity = Number(quantityValue)
   const price = Number(unitPrice)
   const saleTotal = Number.isFinite(quantity) && Number.isFinite(price) ? quantity * price : 0
+  const recoveryUnitPrice = recoveryPriceForPortion(selectedUnit)
+  const margin = Number.isFinite(quantity) && Number.isFinite(price) ? (price - recoveryUnitPrice) * quantity : 0
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -65,6 +78,7 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
       await createSupplierSale({
         supplier,
         product,
+        portion,
         quantity: Number(quantityValue),
         unit_price: unitPrice,
         paid_amount: paidAmount || '0',
@@ -74,6 +88,7 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
       setOpen(false)
       setSupplier('')
       setProduct('')
+      setPortion('')
       setQuantityValue('1')
       setUnitPrice('')
       setPaidAmount('0')
@@ -98,7 +113,7 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Registrar venta a proveedor</SheetTitle>
-          <SheetDescription>Usa el precio de mayoreo y registra cobro parcial o pendiente.</SheetDescription>
+          <SheetDescription>G1 recupera $15 y G2 recupera $30; el resto es ganancia o pérdida.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -125,7 +140,10 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
               onValueChange={(value) => {
                 setProduct(value)
                 const nextProduct = products.find((item) => item.id === value)
-                setUnitPrice(nextProduct ? String(nextProduct.wholesale_price) : '')
+                const nextPortions = salePortions(nextProduct)
+                const nextPortion = nextPortions[0] ?? null
+                setPortion(nextPortion?.id ?? '')
+                setUnitPrice(nextPortion ? String(recoveryPriceForPortion(nextPortion)) : '')
               }}
             >
               <SelectTrigger id="supplier-sale-product">
@@ -135,6 +153,29 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
                 {products.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.name} · {formatUnits(item.available_grams)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="supplier-sale-portion">Tipo</Label>
+            <Select
+              value={portion}
+              onValueChange={(value) => {
+                setPortion(value)
+                const nextPortion = availablePortions.find((item) => item.id === value)
+                setUnitPrice(nextPortion ? String(recoveryPriceForPortion(nextPortion)) : '')
+              }}
+            >
+              <SelectTrigger id="supplier-sale-portion">
+                <SelectValue placeholder="Selecciona G1 o G2" />
+              </SelectTrigger>
+              <SelectContent>
+                {availablePortions.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {salePortionLabel(item)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -155,7 +196,7 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="supplier-sale-price">Precio de mayoreo</Label>
+              <Label htmlFor="supplier-sale-price">Precio de venta</Label>
               <Input
                 id="supplier-sale-price"
                 type="number"
@@ -208,6 +249,15 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
 
           <div className="rounded-xl border bg-background/55 p-3 text-sm">
             <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Recuperado fijo</span>
+              <span className="font-semibold tabular-nums">{formatMoney(recoveryUnitPrice)}</span>
+            </div>
+            <div className="mt-2 flex justify-between gap-3">
+              <span className="text-muted-foreground">Ganancia / pérdida</span>
+              <span className="font-semibold tabular-nums">{formatMoney(margin)}</span>
+            </div>
+            <div className="my-3 h-px bg-border" />
+            <div className="flex justify-between gap-3">
               <span className="text-muted-foreground">Total</span>
               <span className="font-semibold tabular-nums">{formatMoney(saleTotal)}</span>
             </div>
@@ -219,7 +269,7 @@ function SupplierSaleAction({ products, suppliers, onCreated }: SupplierSaleActi
 
           {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-          <Button type="submit" disabled={isSaving || !supplier || !product || !unitPrice || suppliers.length === 0 || products.length === 0}>
+          <Button type="submit" disabled={isSaving || !supplier || !product || !portion || !unitPrice || suppliers.length === 0 || products.length === 0}>
             {isSaving ? 'Guardando...' : 'Guardar venta'}
           </Button>
         </form>

@@ -388,9 +388,9 @@ function App() {
         tone: 'amber' as const,
       },
       {
-        title: 'Reserva',
+        title: 'Recuperado',
         value: formatMoney(snapshot.inventory_reserve_allocated),
-        helper: 'Costo recuperado de producto',
+        helper: 'G1 $15 y G2 $30 recuperados',
         icon: ShoppingBasket,
         tone: 'cyan' as const,
       },
@@ -561,7 +561,6 @@ function App() {
                 partners={partners}
                 sales={sales}
                 suppliers={suppliers}
-                products={products}
                 onChanged={refreshData}
               />
             ) : (
