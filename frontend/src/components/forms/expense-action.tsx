@@ -21,6 +21,9 @@ type ExpenseActionProps = {
   onCreated: () => Promise<void>
 }
 
+const sheetClassName =
+  'w-full max-w-none overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:w-[420px] sm:max-w-none sm:p-6'
+
 function errorMessage(error: unknown) {
   return (error as ApiError)?.message ?? 'No se pudo guardar el gasto.'
 }
@@ -60,22 +63,22 @@ function ExpenseAction({ user, onCreated }: ExpenseActionProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="w-full gap-1 px-2 text-xs min-[380px]:gap-2 min-[380px]:text-sm sm:w-auto sm:px-4">
+        <Button variant="outline" className="quick-action-button max-sm:size-10 max-sm:px-0" title="Gasto rápido">
           <ReceiptText />
-          <span className="min-[360px]:hidden">Gasto</span>
-          <span className="hidden min-[360px]:inline">Gasto rápido</span>
+          <span className="hidden sm:inline">Gasto rápido</span>
+          <span className="sr-only sm:hidden">Gasto rápido</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[calc(100vw-1rem)] max-w-none overflow-y-auto sm:w-[420px] sm:max-w-none">
+      <SheetContent className={sheetClassName}>
         <SheetHeader>
-          <SheetTitle>Registrar gasto operativo</SheetTitle>
-          <SheetDescription>El gasto se registra automáticamente a nombre de tu sesión.</SheetDescription>
+          <SheetTitle>Registrar gasto</SheetTitle>
+          <SheetDescription>El gasto se registra a nombre de tu sesión.</SheetDescription>
         </SheetHeader>
 
-        <form className="grid gap-4" onSubmit={handleSubmit}>
+        <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
           <div className="rounded-xl border bg-muted/45 p-3 text-sm">
             <p className="font-medium">{user.full_name}</p>
-            <p className="text-xs text-muted-foreground">Socio registrado desde sesión activa</p>
+            <p className="text-xs text-muted-foreground">Socio registrado desde la sesión activa</p>
           </div>
 
           <div className="grid gap-2">

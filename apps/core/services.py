@@ -79,7 +79,7 @@ def _unit_price_for_line(customer, product, portion, explicit_price=None):
             {
                 "unit_price": (
                     f"No hay precio activo para {customer.name}, "
-                    f"{product.sku} y porción {portion.name}."
+                    f"{product.sku} y la unidad {portion.name}."
                 )
             }
         )
@@ -122,8 +122,8 @@ def _allocate_inventory_for_sale_line(sale_line):
         raise ValidationError(
             {
                 "inventory": (
-                    f"Stock insuficiente para {sale_line.product.sku}. "
-                    f"Faltan {remaining} gramos."
+                    f"Existencia insuficiente para {sale_line.product.sku}. "
+                    f"Faltan {remaining} piezas."
                 )
             }
         )
@@ -143,7 +143,7 @@ def create_sale(
     sold_by_partner=None,
 ):
     if not lines:
-        raise ValidationError({"lines": "La venta debe incluir al menos una línea."})
+        raise ValidationError({"lines": "La venta debe incluir al menos un producto."})
 
     sale = Sale.objects.create(
         customer=customer,
@@ -164,7 +164,7 @@ def create_sale(
         portions_qty = item["portions_qty"]
 
         if portion.product_id != product.id:
-            raise ValidationError({"portion": "La porción debe pertenecer al producto vendido."})
+            raise ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
 
         unit_price = _unit_price_for_line(
             customer=customer,

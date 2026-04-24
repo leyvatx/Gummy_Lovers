@@ -156,7 +156,7 @@ class CustomerPrice(FullCleanOnSaveMixin, BaseModel):
     def clean(self):
         super().clean()
         if self.product_id and self.portion_id and self.portion.product_id != self.product_id:
-            raise ValidationError({"portion": "La porción debe pertenecer al producto seleccionado."})
+            raise ValidationError({"portion": "La unidad debe pertenecer al producto seleccionado."})
 
     def __str__(self):
         return f"{self.customer} / {self.product.sku} / {self.portion.name}"
@@ -316,7 +316,7 @@ class SaleLine(FullCleanOnSaveMixin, BaseModel):
     def clean(self):
         super().clean()
         if self.product_id and self.portion_id and self.portion.product_id != self.product_id:
-            raise ValidationError({"portion": "La porción debe pertenecer al producto de la línea."})
+            raise ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
 
     class Meta:
         ordering = ["created_at"]
@@ -350,7 +350,7 @@ class InventoryAllocation(FullCleanOnSaveMixin, BaseModel):
     def clean(self):
         super().clean()
         if self.sale_line_id and self.lot_id and self.lot.product_id != self.sale_line.product_id:
-            raise ValidationError({"lot": "El lote asignado debe pertenecer al producto vendido."})
+            raise ValidationError({"lot": "La entrada de inventario debe pertenecer al producto vendido."})
 
     class Meta:
         ordering = ["created_at"]

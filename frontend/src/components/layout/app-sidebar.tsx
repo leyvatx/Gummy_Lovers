@@ -1,26 +1,18 @@
 import { useMemo, useState } from 'react'
 import {
-  Boxes,
+  Candy,
   ChevronRight,
   LayoutDashboard,
-  Package2,
   Search,
-  Tags,
-  Truck,
-  UserRoundPlus,
+  ShoppingBasket,
+  Store,
   X,
 } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-export type AppSection =
-  | 'dashboard'
-  | 'suppliers'
-  | 'products'
-  | 'portions'
-  | 'customers'
-  | 'lots'
+export type AppSection = 'dashboard' | 'suppliers' | 'products'
 
 type SidebarSection = {
   key: AppSection
@@ -42,39 +34,21 @@ type AppSidebarProps = {
 const sections: SidebarSection[] = [
   {
     key: 'dashboard',
-    label: 'Dashboard',
-    helper: 'Finanzas y cobranza',
-    icon: LayoutDashboard,
+    label: 'Inicio',
+    helper: 'Resumen del negocio',
+    icon: Candy,
   },
   {
     key: 'suppliers',
     label: 'Proveedores',
-    helper: 'Compras y contactos',
-    icon: Truck,
+    helper: 'Contactos de compra',
+    icon: Store,
   },
   {
     key: 'products',
     label: 'Productos',
-    helper: 'Catálogo maestro',
-    icon: Package2,
-  },
-  {
-    key: 'portions',
-    label: 'Porciones',
-    helper: 'Tamaño por producto',
-    icon: Tags,
-  },
-  {
-    key: 'customers',
-    label: 'Clientes',
-    helper: 'Mayoristas y saldo',
-    icon: UserRoundPlus,
-  },
-  {
-    key: 'lots',
-    label: 'Lotes',
-    helper: 'Inventario de entrada',
-    icon: Boxes,
+    helper: 'Gomitas y existencias',
+    icon: ShoppingBasket,
   },
 ]
 
@@ -119,7 +93,7 @@ function AppSidebar({
               <span className="sidebar-brand-mark text-sm font-black text-foreground">GL</span>
               <span className="sidebar-brand-copy">
                 <span className="sidebar-brand-eyebrow">Gummy Lover&apos;s</span>
-                <strong className="sidebar-brand-title">Control Hub</strong>
+                <strong className="sidebar-brand-title">Control</strong>
               </span>
             </div>
 
@@ -128,7 +102,7 @@ function AppSidebar({
                 className="sidebar-mobile-close"
                 onClick={onCloseMobile}
                 type="button"
-                aria-label="Cerrar sidebar"
+                aria-label="Cerrar menú"
               >
                 <X className="size-4" />
               </button>
@@ -143,7 +117,7 @@ function AppSidebar({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   className="h-10 rounded-2xl border-[var(--ui-border)] bg-background/80 pl-9 shadow-none"
-                  placeholder="Buscar módulo"
+                  placeholder="Buscar"
                 />
               </div>
             </div>
@@ -173,7 +147,7 @@ function AppSidebar({
         </div>
 
         {!isMobile ? (
-          <button className="sidebar-toggle-btn" onClick={onToggle} type="button" aria-label="Cambiar tamaño del sidebar">
+          <button className="sidebar-toggle-btn" onClick={onToggle} type="button" aria-label="Cambiar tamaño del menú">
             <ChevronRight className="size-4" />
           </button>
         ) : null}

@@ -121,7 +121,7 @@ class CustomerPriceSerializer(serializers.ModelSerializer):
         product = attrs.get("product", getattr(self.instance, "product", None))
         portion = attrs.get("portion", getattr(self.instance, "portion", None))
         if product and portion and portion.product_id != product.id:
-            raise serializers.ValidationError({"portion": "La porción debe pertenecer al producto seleccionado."})
+            raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto seleccionado."})
         return attrs
 
 
@@ -184,7 +184,7 @@ class InventoryLotSerializer(serializers.ModelSerializer):
         total_grams = data.get("total_grams")
         remaining_grams = data.get("remaining_grams")
         if total_grams is not None and remaining_grams is not None and remaining_grams > total_grams:
-            raise serializers.ValidationError({"remaining_grams": "No puede superar los gramos totales."})
+            raise serializers.ValidationError({"remaining_grams": "La existencia no puede superar el total."})
         return attrs
 
     def create(self, validated_data):
@@ -248,7 +248,7 @@ class SaleLineInputSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["portion"].product_id != attrs["product"].id:
-            raise serializers.ValidationError({"portion": "La porción debe pertenecer al producto vendido."})
+            raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
         return attrs
 
 
@@ -422,7 +422,7 @@ class DirectSaleSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["portion"].product_id != attrs["product"].id:
-            raise serializers.ValidationError({"portion": "La porción debe pertenecer al producto vendido."})
+            raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
         return attrs
 
     def create(self, validated_data):

@@ -229,7 +229,7 @@ async function request<T>(path: string, options: RequestInit = {}) {
       clearStoredAuthToken()
     }
 
-    const message = extractApiMessage(payload) || 'La API no pudo procesar la operacion.'
+    const message = extractApiMessage(payload) || 'La API no pudo procesar la operación.'
     throw { message, status: response.status, detail: payload } satisfies ApiError
   }
 

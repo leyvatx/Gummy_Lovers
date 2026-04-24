@@ -12,10 +12,10 @@ type MetricCardProps = {
 }
 
 const tones = {
-  rose: 'bg-rose-50 text-rose-700 border-rose-100',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  amber: 'bg-amber-50 text-amber-800 border-amber-100',
-  cyan: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+  rose: 'bg-pink-50 text-pink-700 border-pink-100 dark:bg-pink-400/10 dark:text-pink-100 dark:border-pink-300/15',
+  emerald: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100 dark:bg-fuchsia-400/10 dark:text-fuchsia-100 dark:border-fuchsia-300/15',
+  amber: 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-400/10 dark:text-rose-100 dark:border-rose-300/15',
+  cyan: 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-400/10 dark:text-purple-100 dark:border-purple-300/15',
 }
 
 function MetricCard({ title, value, helper, icon: Icon, tone }: MetricCardProps) {
