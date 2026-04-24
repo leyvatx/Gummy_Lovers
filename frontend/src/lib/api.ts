@@ -118,18 +118,40 @@ export type AuthUser = {
   is_superuser: boolean
 }
 
-export type WholesaleSale = {
+export type SaleChannel = 'wholesale' | 'direct'
+
+export type SaleStatus = 'draft' | 'delivered' | 'partial' | 'paid' | 'cancelled'
+
+export type SaleLine = {
+  id: string
+  product: string
+  product_sku: string
+  portion: string
+  portion_name: string
+  portions_qty: number
+  unit_price: MoneyValue
+  line_total: MoneyValue
+  cogs_amount: MoneyValue
+}
+
+export type SaleRecord = {
   id: string
   customer: string
   customer_name: string
-  channel: 'wholesale' | 'direct'
+  channel: SaleChannel
   sold_by_partner: string | null
   sold_by_partner_name: string
-  status: string
+  status: SaleStatus
+  delivered_at: string | null
   total_amount: MoneyValue
   total_cogs: MoneyValue
+  paid_amount: MoneyValue
+  outstanding_balance: MoneyValue
   notes: string
+  lines: SaleLine[]
 }
+
+export type WholesaleSale = SaleRecord
 
 export type ApiError = {
   message: string
@@ -308,6 +330,11 @@ export async function getPartners() {
   return normalizeList(payload)
 }
 
+export async function getSales() {
+  const payload = await request<SaleRecord[] | { results?: SaleRecord[] }>('/api/sales/')
+  return normalizeList(payload)
+}
+
 export function createSupplier(payload: {
   name: string
   partner?: string
@@ -363,6 +390,21 @@ export function updateProduct(id: string, payload: {
 
 export function deleteProduct(id: string) {
   return request<void>(`/api/products/${id}/`, {
+    method: 'DELETE',
+  })
+}
+
+export function updateSale(id: string, payload: {
+  notes: string
+}) {
+  return request<SaleRecord>(`/api/sales/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSale(id: string) {
+  return request<void>(`/api/sales/${id}/`, {
     method: 'DELETE',
   })
 }

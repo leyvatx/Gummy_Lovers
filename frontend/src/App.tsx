@@ -8,6 +8,8 @@ import { ExpenseAction } from '@/components/forms/expense-action'
 import { AppSidebar, type AppSection } from '@/components/layout/app-sidebar'
 import { LoginScreen } from '@/components/login-screen'
 import { CatalogWorkspace } from '@/components/management/catalog-workspace'
+import { SalesFilters, type SaleChannelFilter, type SaleStatusFilter } from '@/components/sales/sales-filters'
+import { SalesWorkspace } from '@/components/sales/sales-workspace'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +19,7 @@ import {
   getFinancialSnapshot,
   getPartners,
   getProducts,
+  getSales,
   getSuppliers,
   hasStoredAuthToken,
   logout as apiLogout,
@@ -25,6 +28,7 @@ import {
   type FinancialSnapshot,
   type Partner,
   type Product,
+  type SaleRecord,
   type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
@@ -51,6 +55,9 @@ const sectionMeta: Record<AppSection, { title: string }> = {
   },
   suppliers: {
     title: 'Proveedores',
+  },
+  sales: {
+    title: 'Ventas',
   },
   products: {
     title: 'Productos',
@@ -109,6 +116,10 @@ function App() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [sales, setSales] = useState<SaleRecord[]>([])
+  const [salesQuery, setSalesQuery] = useState('')
+  const [salesStatus, setSalesStatus] = useState<SaleStatusFilter>('all')
+  const [salesChannel, setSalesChannel] = useState<SaleChannelFilter>('all')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState('')
@@ -120,6 +131,7 @@ function App() {
     setPartners([])
     setSuppliers([])
     setProducts([])
+    setSales([])
     setIsLoading(false)
     setError('')
   }, [])
@@ -211,17 +223,19 @@ function App() {
   }, [])
 
   const fetchWorkspaceData = useCallback(async () => {
-    const [financialData, partnerData, supplierData, productData] = await Promise.all([
+    const [financialData, partnerData, supplierData, productData, salesData] = await Promise.all([
       getFinancialSnapshot(),
       getPartners(),
       getSuppliers(),
       getProducts(),
+      getSales(),
     ])
 
     return {
       financialData,
       partnerData,
       productData,
+      salesData,
       supplierData,
     }
   }, [])
@@ -244,12 +258,13 @@ function App() {
       }
 
       try {
-        const { financialData, partnerData, productData, supplierData } = await fetchWorkspaceData()
+        const { financialData, partnerData, productData, salesData, supplierData } = await fetchWorkspaceData()
 
         setSnapshot(financialData)
         setPartners(partnerData)
         setSuppliers(supplierData)
         setProducts(productData)
+        setSales(salesData)
         setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
         setError('')
       } catch (refreshError) {
@@ -406,6 +421,20 @@ function App() {
         return <SupplierAction partners={partners} onCreated={refreshData} />
       case 'products':
         return <ProductAction suppliers={suppliers} onCreated={refreshData} />
+      case 'sales':
+        return (
+          <>
+            <SalesFilters
+              query={salesQuery}
+              status={salesStatus}
+              channel={salesChannel}
+              onQueryChange={setSalesQuery}
+              onStatusChange={setSalesStatus}
+              onChannelChange={setSalesChannel}
+            />
+            <DirectSaleAction user={user} products={products} onCreated={refreshData} />
+          </>
+        )
     }
   })()
 
@@ -555,6 +584,14 @@ function App() {
                   </Card>
                 </section>
               </div>
+            ) : currentSection === 'sales' ? (
+              <SalesWorkspace
+                sales={sales}
+                query={salesQuery}
+                status={salesStatus}
+                channel={salesChannel}
+                onChanged={refreshData}
+              />
             ) : (
               <CatalogWorkspace
                 section={currentSection}

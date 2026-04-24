@@ -3,6 +3,7 @@ import {
   Candy,
   ChevronRight,
   LayoutDashboard,
+  ReceiptText,
   Search,
   ShoppingBasket,
   Store,
@@ -12,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-export type AppSection = 'dashboard' | 'suppliers' | 'products'
+export type AppSection = 'dashboard' | 'sales' | 'suppliers' | 'products'
 
 type SidebarSection = {
   key: AppSection
@@ -37,6 +38,12 @@ const sections: SidebarSection[] = [
     label: 'Inicio',
     helper: 'Resumen del negocio',
     icon: Candy,
+  },
+  {
+    key: 'sales',
+    label: 'Ventas',
+    helper: 'Historial y filtros',
+    icon: ReceiptText,
   },
   {
     key: 'suppliers',

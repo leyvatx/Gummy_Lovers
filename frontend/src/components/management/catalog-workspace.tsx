@@ -43,7 +43,7 @@ import {
 import { formatMoney } from '@/lib/format'
 
 type CatalogWorkspaceProps = {
-  section: Exclude<AppSection, 'dashboard'>
+  section: Extract<AppSection, 'suppliers' | 'products'>
   partners: Partner[]
   products: Product[]
   suppliers: Supplier[]
