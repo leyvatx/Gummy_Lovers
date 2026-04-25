@@ -67,9 +67,7 @@ class SupplierViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
         return self.filter_active(super().get_queryset())
 
     def destroy(self, request, *args, **kwargs):
-        supplier = self.get_object()
-        supplier.active = False
-        supplier.save(update_fields=["active", "updated_at"])
+        Supplier.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(active=False)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -81,9 +79,7 @@ class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
         return self.filter_active(super().get_queryset())
 
     def destroy(self, request, *args, **kwargs):
-        product = self.get_object()
-        product.active = False
-        product.save(update_fields=["active", "updated_at"])
+        Product.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(active=False)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -178,9 +174,7 @@ class SaleViewSet(viewsets.ModelViewSet):
         return queryset
 
     def destroy(self, request, *args, **kwargs):
-        sale = self.get_object()
-        sale.status = Sale.Status.CANCELLED
-        sale.save(update_fields=["status", "updated_at"])
+        Sale.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(status=Sale.Status.CANCELLED)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
