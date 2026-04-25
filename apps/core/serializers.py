@@ -46,6 +46,11 @@ class PartnerSerializer(serializers.ModelSerializer):
 
 
 class SupplierSerializer(serializers.ModelSerializer):
+    partner = serializers.PrimaryKeyRelatedField(
+        queryset=Partner.objects.filter(active=True),
+        allow_null=True,
+        required=False,
+    )
     partner_name = serializers.CharField(source="partner.name", read_only=True)
 
     class Meta:
@@ -327,6 +332,9 @@ class SaleSerializer(serializers.ModelSerializer):
         items = validated_data.pop("items")
         request = self.context.get("request")
         partner = getattr(getattr(request, "user", None), "partner", None)
+        supplier = validated_data.get("supplier")
+        if supplier and supplier.partner_id:
+            partner = supplier.partner
         return services.create_sale(
             lines=items,
             sold_by_partner=partner,

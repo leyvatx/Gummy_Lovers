@@ -361,10 +361,11 @@ def create_supplier_sale(
     delivered_at=None,
     notes="",
 ):
-    if not partner:
-        raise ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
     if not supplier.active:
         raise ValidationError({"supplier": "El proveedor seleccionado no está activo."})
+    sale_partner = supplier.partner or partner
+    if not sale_partner:
+        raise ValidationError({"partner": "La venta necesita un socio vinculado al proveedor o a tu sesión."})
 
     delivered_at = delivered_at or timezone.now()
     customer = _wholesale_customer_for_supplier(supplier)
@@ -384,7 +385,7 @@ def create_supplier_sale(
         delivered_at=delivered_at,
         notes=notes,
         channel=Sale.Channel.WHOLESALE,
-        sold_by_partner=partner,
+        sold_by_partner=sale_partner,
     )
 
     payment = None
@@ -510,39 +511,35 @@ def _outstanding_inventory_reserves():
                 yield line, pending
 
 
-def _active_partners_for_profit():
-    partners = list(Partner.objects.filter(active=True).order_by("code"))
-    if len(partners) != 2:
-        raise ValidationError({"partners": "El reparto de utilidad requiere exactamente 2 socios activos."})
-    return partners
+def _sale_owner_partner(sale):
+    if sale.supplier_id and sale.supplier and sale.supplier.partner_id:
+        return sale.supplier.partner
+    return sale.sold_by_partner
 
 
-def _allocate_profit(payment, amount):
+def _pending_recovery_for_sale_line(sale_line):
+    reserved = sum_amount(
+        SmartSplitAllocation.objects.filter(
+            type=SmartSplitAllocation.Type.INVENTORY_RESERVE,
+            sale_line=sale_line,
+        )
+    )
+    return money(sale_line.recovery_amount - reserved)
+
+
+def _allocate_profit_to_partner(payment, partner, amount):
     if amount <= 0:
         return
 
-    partners = _active_partners_for_profit()
-    total_percent = sum(partner.ownership_percent for partner in partners)
-    if total_percent <= 0:
-        raise ValidationError({"partners": "El porcentaje de propiedad debe ser mayor a cero."})
+    if not partner:
+        raise ValidationError({"partner": "La utilidad necesita un socio responsable de la venta."})
 
-    remaining = amount
-    shares = []
-    for partner in partners[:-1]:
-        share = money(amount * partner.ownership_percent / total_percent)
-        shares.append(share)
-        remaining = money(remaining - share)
-    shares.append(remaining)
-
-    for partner, share in zip(partners, shares, strict=True):
-        if share <= 0:
-            continue
-        SmartSplitAllocation.objects.create(
-            payment=payment,
-            type=SmartSplitAllocation.Type.PARTNER_PROFIT,
-            partner=partner,
-            amount=share,
-        )
+    SmartSplitAllocation.objects.create(
+        payment=payment,
+        type=SmartSplitAllocation.Type.PARTNER_PROFIT,
+        partner=partner,
+        amount=amount,
+    )
 
 
 def apply_smart_split(payment):
@@ -562,20 +559,53 @@ def apply_smart_split(payment):
         )
         remaining = money(remaining - allocation_amount)
 
-    for sale_line, pending in _outstanding_inventory_reserves():
+    payment_allocations = (
+        payment.sale_allocations.select_related("sale", "sale__supplier", "sale__supplier__partner", "sale__sold_by_partner")
+        .prefetch_related("sale__lines")
+        .order_by("created_at")
+    )
+    for payment_allocation in payment_allocations:
         if remaining <= 0:
             return
 
-        allocation_amount = min(remaining, pending)
-        SmartSplitAllocation.objects.create(
-            payment=payment,
-            type=SmartSplitAllocation.Type.INVENTORY_RESERVE,
-            sale_line=sale_line,
-            amount=allocation_amount,
-        )
-        remaining = money(remaining - allocation_amount)
+        sale_cash = min(remaining, money(payment_allocation.amount))
+        sale = payment_allocation.sale
 
-    _allocate_profit(payment, remaining)
+        for sale_line in sale.lines.all():
+            if sale_cash <= 0:
+                break
+
+            pending_recovery = _pending_recovery_for_sale_line(sale_line)
+            if pending_recovery <= 0:
+                continue
+
+            allocation_amount = min(sale_cash, pending_recovery)
+            SmartSplitAllocation.objects.create(
+                payment=payment,
+                type=SmartSplitAllocation.Type.INVENTORY_RESERVE,
+                sale_line=sale_line,
+                amount=allocation_amount,
+            )
+            sale_cash = money(sale_cash - allocation_amount)
+            remaining = money(remaining - allocation_amount)
+
+        if sale_cash > 0:
+            _allocate_profit_to_partner(payment, _sale_owner_partner(sale), sale_cash)
+            remaining = money(remaining - sale_cash)
+
+    if remaining > 0:
+        for sale_line, pending in _outstanding_inventory_reserves():
+            if remaining <= 0:
+                return
+
+            allocation_amount = min(remaining, pending)
+            SmartSplitAllocation.objects.create(
+                payment=payment,
+                type=SmartSplitAllocation.Type.INVENTORY_RESERVE,
+                sale_line=sale_line,
+                amount=allocation_amount,
+            )
+            remaining = money(remaining - allocation_amount)
 
 
 @transaction.atomic

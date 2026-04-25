@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Candy,
   ChevronRight,
+  BarChart3,
   LayoutDashboard,
   ReceiptText,
   Search,
@@ -14,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-export type AppSection = 'dashboard' | 'sales' | 'partners' | 'suppliers' | 'products'
+export type AppSection = 'dashboard' | 'profits' | 'sales' | 'partners' | 'suppliers' | 'products'
 
 type SidebarSection = {
   key: AppSection
@@ -45,6 +46,12 @@ const sections: SidebarSection[] = [
     label: 'Ventas',
     helper: 'Historial y filtros',
     icon: ReceiptText,
+  },
+  {
+    key: 'profits',
+    label: 'Ganancias',
+    helper: 'Comparativo por socio',
+    icon: BarChart3,
   },
   {
     key: 'partners',

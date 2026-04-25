@@ -10,6 +10,7 @@ import { AppSidebar, type AppSection } from '@/components/layout/app-sidebar'
 import { LoginScreen } from '@/components/login-screen'
 import { CatalogWorkspace } from '@/components/management/catalog-workspace'
 import { PartnersWorkspace } from '@/components/partners/partners-workspace'
+import { ProfitWorkspace } from '@/components/profits/profit-workspace'
 import { SalesFilters, type SaleChannelFilter, type SaleStatusFilter } from '@/components/sales/sales-filters'
 import { SalesWorkspace } from '@/components/sales/sales-workspace'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import {
   type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { buildProfitSummary } from '@/lib/profit-stats'
 import { cn } from '@/lib/utils'
 
 const DASHBOARD_REFRESH_MS = 15_000
@@ -59,6 +61,9 @@ const sectionMeta: Record<AppSection, { title: string }> = {
   },
   sales: {
     title: 'Ventas',
+  },
+  profits: {
+    title: 'Ganancias',
   },
   partners: {
     title: 'Socios',
@@ -364,38 +369,43 @@ function App() {
     }
   }, [clearAuthState])
 
+  const profitSummary = useMemo(
+    () => buildProfitSummary(partners, suppliers, sales),
+    [partners, sales, suppliers],
+  )
+
   const metrics = useMemo(
     () => [
       {
-        title: 'Caja',
-        value: formatMoney(snapshot.cash_on_hand),
-        helper: 'Dinero registrado en el sistema',
+        title: 'Ventas',
+        value: formatMoney(profitSummary.revenue),
+        helper: `${profitSummary.units.toLocaleString('es-MX')} piezas registradas`,
         icon: Donut,
         tone: 'rose' as const,
       },
       {
-        title: 'Ganancia neta',
-        value: formatMoney(snapshot.net_profit_available),
-        helper: 'Utilidad según porcentaje de socio',
+        title: 'Ganancia / pérdida',
+        value: formatMoney(profitSummary.netProfit),
+        helper: `Ganancia ${formatMoney(profitSummary.grossProfit)} - pérdida ${formatMoney(profitSummary.loss)}`,
         icon: Candy,
         tone: 'emerald' as const,
       },
       {
-        title: 'Reembolsos',
-        value: formatMoney(snapshot.partner_reimbursements_available),
-        helper: 'Pendiente por pagar a socios',
+        title: 'Por cobrar',
+        value: formatMoney(profitSummary.receivable),
+        helper: 'Venta registrada pendiente de cobro',
         icon: IceCreamBowl,
         tone: 'amber' as const,
       },
       {
-        title: 'Recuperado',
-        value: formatMoney(snapshot.inventory_reserve_allocated),
-        helper: 'G1 $15 y G2 $30 recuperados',
+        title: 'Recuperado fijo',
+        value: formatMoney(profitSummary.recoveryTarget),
+        helper: `${formatMoney(profitSummary.recoveryCollected)} cobrado como recuperación`,
         icon: ShoppingBasket,
         tone: 'cyan' as const,
       },
     ],
-    [snapshot],
+    [profitSummary],
   )
 
   if (isAuthLoading) {
@@ -440,6 +450,8 @@ function App() {
             <DirectSaleAction user={user} products={products} onCreated={refreshData} />
           </>
         )
+      case 'profits':
+        return null
       case 'partners':
         return null
     }
@@ -537,12 +549,12 @@ function App() {
                         <strong className="tabular-nums">{formatMoney(snapshot.pending_expense_reimbursements)}</strong>
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">
-                        <span className="text-muted-foreground">Dinero en caja</span>
-                        <strong className="tabular-nums">{formatMoney(snapshot.cash_on_hand)}</strong>
+                        <span className="text-muted-foreground">Recuperado fijo</span>
+                        <strong className="tabular-nums">{formatMoney(profitSummary.recoveryTarget)}</strong>
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">
-                        <span className="text-muted-foreground">Ganancia disponible</span>
-                        <strong className="tabular-nums">{formatMoney(snapshot.net_profit_available)}</strong>
+                        <span className="text-muted-foreground">Ganancia / pérdida</span>
+                        <strong className="tabular-nums">{formatMoney(profitSummary.netProfit)}</strong>
                       </div>
                     </CardContent>
                   </Card>
@@ -555,6 +567,12 @@ function App() {
                 status={salesStatus}
                 channel={salesChannel}
                 onChanged={refreshData}
+              />
+            ) : currentSection === 'profits' ? (
+              <ProfitWorkspace
+                partners={partners}
+                sales={sales}
+                suppliers={suppliers}
               />
             ) : currentSection === 'partners' ? (
               <PartnersWorkspace

@@ -17,6 +17,7 @@ from apps.core.models import (
     Product,
     Sale,
     SmartSplitAllocation,
+    Supplier,
 )
 
 
@@ -74,6 +75,7 @@ class CoreServiceTests(TestCase):
         sale = services.create_sale(
             customer=self.customer,
             lines=[{"product": self.product, "portion": self.small, "portions_qty": 10}],
+            sold_by_partner=self.partner_a,
         )
         OperationalExpense.objects.create(
             paid_by_partner=self.partner_a,
@@ -103,6 +105,18 @@ class CoreServiceTests(TestCase):
         self.assertEqual(
             services.sum_amount(allocations.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT)),
             Decimal("100.00"),
+        )
+        self.assertEqual(
+            services.sum_amount(
+                allocations.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT, partner=self.partner_a)
+            ),
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            services.sum_amount(
+                allocations.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT, partner=self.partner_b)
+            ),
+            Decimal("0.00"),
         )
         self.assertEqual(CustomerPayment.objects.count(), 1)
         sale.refresh_from_db()
@@ -135,9 +149,38 @@ class CoreServiceTests(TestCase):
         )
         self.assertEqual(
             services.sum_amount(
-                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT)
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT, partner=self.partner_a)
             ),
             Decimal("40.00"),
+        )
+
+    def test_supplier_sale_uses_supplier_partner_for_profit(self):
+        supplier = Supplier.objects.create(name="Proveedor Norte", partner=self.partner_b)
+
+        sale, payment = services.create_supplier_sale(
+            partner=self.partner_a,
+            supplier=supplier,
+            product=self.product,
+            portion=self.small,
+            quantity=2,
+            unit_price=Decimal("25.00"),
+            paid_amount=Decimal("50.00"),
+            method="cash",
+        )
+
+        self.assertEqual(sale.sold_by_partner, self.partner_b)
+        self.assertEqual(payment.amount, Decimal("50.00"))
+        self.assertEqual(
+            services.sum_amount(
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.INVENTORY_RESERVE)
+            ),
+            Decimal("30.00"),
+        )
+        self.assertEqual(
+            services.sum_amount(
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT, partner=self.partner_b)
+            ),
+            Decimal("20.00"),
         )
 
     def test_direct_sale_below_fixed_recovery_records_loss(self):
@@ -225,6 +268,34 @@ class CoreAPITests(TestCase):
         self.assertEqual(response.data["status"], Sale.Status.DELIVERED)
         self.assertEqual(response.data["total_amount"], "300.00")
         self.assertEqual(response.data["total_cogs"], "75.00")
+
+    def test_supplier_endpoint_saves_partner_assignment(self):
+        response = self.client.post(
+            "/api/suppliers/",
+            {
+                "name": "Proveedor Norte",
+                "partner": str(self.partner_a.id),
+                "phone": "6620000000",
+                "notes": "",
+                "active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(str(response.data["partner"]), str(self.partner_a.id))
+        self.assertEqual(response.data["partner_name"], self.partner_a.name)
+
+        supplier_id = response.data["id"]
+        patch_response = self.client.patch(
+            f"/api/suppliers/{supplier_id}/",
+            {"partner": str(self.partner_b.id)},
+            format="json",
+        )
+
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(str(patch_response.data["partner"]), str(self.partner_b.id))
+        self.assertEqual(patch_response.data["partner_name"], self.partner_b.name)
 
     def test_sales_endpoint_uses_authenticated_partner_as_seller(self):
         self.partner_a.user = self.user

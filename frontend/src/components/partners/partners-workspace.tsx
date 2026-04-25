@@ -23,6 +23,7 @@ import {
   type Supplier,
 } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { buildProfitSummary } from '@/lib/profit-stats'
 
 type PartnersWorkspaceProps = {
   partners: Partner[]
@@ -58,14 +59,6 @@ function errorMessage(error: unknown, fallbackMessage: string) {
 
 function unitsLabel(value: number) {
   return `${value.toLocaleString('es-MX', { maximumFractionDigits: 0 })} pieza${value === 1 ? '' : 's'}`
-}
-
-function saleUnits(sale: SaleRecord) {
-  return sale.lines.reduce((sum, line) => sum + Number(line.portions_qty || 0), 0)
-}
-
-function saleRecoveryAmount(sale: SaleRecord) {
-  return sale.lines.reduce((sum, line) => sum + toNumber(line.recovery_amount), 0)
 }
 
 function FieldRow({ label, value }: { label: string; value: ReactNode }) {
@@ -171,7 +164,7 @@ function PartnerContextActions({
                 <FieldRow label="Participación" value={`${toNumber(row.partner.ownership_percent).toFixed(2)}%`} />
                 <FieldRow label="Venta propia" value={`${row.stats.directCount} venta${row.stats.directCount === 1 ? '' : 's'} · ${unitsLabel(row.stats.directUnits)}`} />
                 <FieldRow label="Venta a proveedores" value={`${row.stats.wholesaleCount} venta${row.stats.wholesaleCount === 1 ? '' : 's'} · ${unitsLabel(row.stats.wholesaleUnits)}`} />
-                <FieldRow label="Ganancia / pérdida propia" value={<span className="font-semibold tabular-nums">{formatMoney(row.stats.directExtra)}</span>} />
+                <FieldRow label="Ganancia / pérdida total" value={<span className="font-semibold tabular-nums">{formatMoney(row.stats.directExtra)}</span>} />
                 <FieldRow label="Proveedor vinculado" value={row.supplierProfiles.map((supplier) => supplier.name).join(', ') || 'Ninguno'} />
               </dl>
             </>
@@ -239,28 +232,19 @@ function PartnersWorkspace({
   const partnerContextMenu = useRowContextMenu()
 
   const rows = useMemo<PartnerRow[]>(() => {
-    return partners.map((partner) => {
-      const partnerSales = sales.filter((sale) => sale.sold_by_partner === partner.id)
-      const directSales = partnerSales.filter((sale) => sale.channel === 'direct')
-      const wholesaleSales = partnerSales.filter((sale) => sale.channel === 'wholesale')
-      const directRevenue = directSales.reduce((sum, sale) => sum + toNumber(sale.total_amount), 0)
-      const directBase = directSales.reduce((sum, sale) => sum + saleRecoveryAmount(sale), 0)
-      const wholesaleRevenue = wholesaleSales.reduce((sum, sale) => sum + toNumber(sale.total_amount), 0)
-
-      return {
-        partner,
-        supplierProfiles: suppliers.filter((supplier) => supplier.partner === partner.id),
-        stats: {
-          directCount: directSales.length,
-          directRevenue,
-          directUnits: directSales.reduce((sum, sale) => sum + saleUnits(sale), 0),
-          directExtra: directRevenue - directBase,
-          wholesaleCount: wholesaleSales.length,
-          wholesaleRevenue,
-          wholesaleUnits: wholesaleSales.reduce((sum, sale) => sum + saleUnits(sale), 0),
-        },
-      }
-    })
+    return buildProfitSummary(partners, suppliers, sales).partnerRows.map((row) => ({
+      partner: row.partner,
+      supplierProfiles: row.suppliers,
+      stats: {
+        directCount: row.directSales,
+        directRevenue: row.directRevenue,
+        directUnits: row.directUnits,
+        directExtra: row.netProfit,
+        wholesaleCount: row.supplierSales,
+        wholesaleRevenue: row.supplierRevenue,
+        wholesaleUnits: row.supplierUnits,
+      },
+    }))
   }, [partners, sales, suppliers])
 
   const totals = rows.reduce(
@@ -306,7 +290,7 @@ function PartnersWorkspace({
                     </div>
                     <dl className="mt-4 grid gap-2 text-sm">
                       <FieldRow label="Venta propia" value={`${formatMoney(row.stats.directRevenue)} · ${unitsLabel(row.stats.directUnits)}`} />
-                      <FieldRow label="Ganancia / pérdida" value={<span className="font-semibold tabular-nums">{formatMoney(row.stats.directExtra)}</span>} />
+                      <FieldRow label="Ganancia / pérdida total" value={<span className="font-semibold tabular-nums">{formatMoney(row.stats.directExtra)}</span>} />
                       <FieldRow label="Venta a proveedores" value={`${formatMoney(row.stats.wholesaleRevenue)} · ${unitsLabel(row.stats.wholesaleUnits)}`} />
                     </dl>
                     <PartnerContextActions row={row} menuTarget={partnerContextMenu.target} onCloseMenu={partnerContextMenu.close} onChanged={onChanged} />
@@ -321,7 +305,7 @@ function PartnersWorkspace({
                       <th className="px-4 py-3 font-medium sm:px-5">Socio</th>
                       <th className="px-4 py-3 font-medium">Inversión</th>
                       <th className="px-4 py-3 font-medium">Venta propia</th>
-                      <th className="px-4 py-3 font-medium">Ganancia / pérdida</th>
+                      <th className="px-4 py-3 font-medium">Ganancia / pérdida total</th>
                       <th className="px-4 py-3 font-medium">Venta a proveedores</th>
                     </tr>
                   </thead>
