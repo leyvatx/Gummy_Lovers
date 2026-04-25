@@ -67,12 +67,19 @@ class SupplierViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
         return self.filter_active(super().get_queryset())
 
     def destroy(self, request, *args, **kwargs):
-        Supplier.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(active=False)
+        supplier_id = kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        try:
+            services.hard_delete_supplier(supplier_id)
+        except Supplier.DoesNotExist:
+            return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
-        Supplier.objects.filter(pk=pk).update(active=False)
+        try:
+            services.hard_delete_supplier(pk)
+        except Supplier.DoesNotExist:
+            return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -84,12 +91,19 @@ class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
         return self.filter_active(super().get_queryset())
 
     def destroy(self, request, *args, **kwargs):
-        Product.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(active=False)
+        product_id = kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        try:
+            services.hard_delete_product(product_id)
+        except Product.DoesNotExist:
+            return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
-        Product.objects.filter(pk=pk).update(active=False)
+        try:
+            services.hard_delete_product(pk)
+        except Product.DoesNotExist:
+            return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -184,35 +198,45 @@ class SaleViewSet(viewsets.ModelViewSet):
         return queryset
 
     def destroy(self, request, *args, **kwargs):
-        Sale.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(status=Sale.Status.CANCELLED)
+        sale_id = kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        try:
+            services.hard_delete_sale(sale_id)
+        except Sale.DoesNotExist:
+            return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
-        Sale.objects.filter(pk=pk).update(status=Sale.Status.CANCELLED)
+        try:
+            services.hard_delete_sale(pk)
+        except Sale.DoesNotExist:
+            return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SupplierDeactivateAPIView(APIView):
     def post(self, request, pk):
-        updated = Supplier.objects.filter(pk=pk).update(active=False)
-        if not updated:
+        try:
+            services.hard_delete_supplier(pk)
+        except Supplier.DoesNotExist:
             return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ProductDeactivateAPIView(APIView):
     def post(self, request, pk):
-        updated = Product.objects.filter(pk=pk).update(active=False)
-        if not updated:
+        try:
+            services.hard_delete_product(pk)
+        except Product.DoesNotExist:
             return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SaleCancelAPIView(APIView):
     def post(self, request, pk):
-        updated = Sale.objects.filter(pk=pk).update(status=Sale.Status.CANCELLED)
-        if not updated:
+        try:
+            services.hard_delete_sale(pk)
+        except Sale.DoesNotExist:
             return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

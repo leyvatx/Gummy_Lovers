@@ -65,7 +65,7 @@ class Partner(FullCleanOnSaveMixin, BaseModel):
 
 
 class Supplier(BaseModel):
-    name = models.CharField(max_length=160, unique=True)
+    name = models.CharField(max_length=160)
     partner = models.ForeignKey(
         Partner,
         null=True,
@@ -83,10 +83,17 @@ class Supplier(BaseModel):
     class Meta:
         ordering = ["name"]
         indexes = [models.Index(fields=["active", "name"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name"],
+                condition=Q(active=True),
+                name="uniq_active_supplier_name",
+            ),
+        ]
 
 
 class Product(BaseModel):
-    sku = models.CharField(max_length=40, unique=True)
+    sku = models.CharField(max_length=40)
     name = models.CharField(max_length=160)
     wholesale_price = models.DecimalField(
         max_digits=12,
@@ -108,6 +115,11 @@ class Product(BaseModel):
         ordering = ["name"]
         indexes = [models.Index(fields=["sku", "active"])]
         constraints = [
+            models.UniqueConstraint(
+                fields=["sku"],
+                condition=Q(active=True),
+                name="uniq_active_product_sku",
+            ),
             models.CheckConstraint(condition=Q(wholesale_price__gte=0), name="product_wholesale_price_gte_0"),
         ]
 

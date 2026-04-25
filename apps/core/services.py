@@ -15,9 +15,12 @@ from apps.core.models import (
     OperationalExpense,
     Partner,
     PartnerPayout,
+    PortionSize,
+    Product,
     Sale,
     SaleLine,
     SmartSplitAllocation,
+    Supplier,
 )
 
 
@@ -416,6 +419,118 @@ def create_supplier_sale(
         sale.refresh_from_db()
 
     return sale, payment
+
+
+def _refresh_sales_statuses(sales):
+    seen = set()
+    for sale in sales:
+        if not sale or sale.id in seen:
+            continue
+        seen.add(sale.id)
+        _refresh_sale_status(sale)
+
+
+def _delete_or_reduce_payments_for_sale(sale):
+    payment_rows = list(
+        CustomerPaymentAllocation.objects.select_related("payment")
+        .filter(sale=sale)
+        .order_by("created_at")
+    )
+    impacted_sales = []
+
+    for allocation in payment_rows:
+        payment = allocation.payment
+        removed_amount = money(allocation.amount)
+
+        SmartSplitAllocation.objects.filter(payment=payment).delete()
+        allocation.delete()
+
+        remaining_allocations = list(payment.sale_allocations.select_related("sale"))
+        if not remaining_allocations:
+            payment.delete()
+            continue
+
+        next_amount = money(payment.amount - removed_amount)
+        if next_amount <= 0:
+            payment.delete()
+            continue
+
+        payment.amount = next_amount
+        payment.save(update_fields=["amount", "updated_at"])
+        impacted_sales.extend(item.sale for item in remaining_allocations)
+        apply_smart_split(payment)
+
+    _refresh_sales_statuses(impacted_sales)
+
+
+def _restore_inventory_for_sale(sale):
+    allocations = InventoryAllocation.objects.select_related("lot").filter(sale_line__sale=sale)
+    for allocation in allocations:
+        lot = allocation.lot
+        lot.remaining_grams = grams(min(lot.total_grams, lot.remaining_grams + allocation.grams))
+        lot.save(update_fields=["remaining_grams", "updated_at"])
+
+
+def _delete_empty_auto_customer(customer):
+    if not customer:
+        return
+
+    is_auto_customer = customer.name.startswith("Proveedor - ") or customer.name.startswith("Venta directa - Socio ")
+    if not is_auto_customer:
+        return
+
+    has_sales = Sale.objects.filter(customer=customer).exists()
+    has_payments = CustomerPayment.objects.filter(customer=customer).exists()
+    if not has_sales and not has_payments:
+        customer.delete()
+
+
+@transaction.atomic
+def hard_delete_sale(sale_or_id):
+    sale_id = getattr(sale_or_id, "id", sale_or_id)
+    sale = (
+        Sale.objects.select_for_update()
+        .select_related("customer")
+        .prefetch_related("lines")
+        .get(pk=sale_id)
+    )
+    customer = sale.customer
+    line_ids = list(sale.lines.values_list("id", flat=True))
+
+    _restore_inventory_for_sale(sale)
+    SmartSplitAllocation.objects.filter(sale_line_id__in=line_ids).delete()
+    _delete_or_reduce_payments_for_sale(sale)
+    sale.delete()
+    _delete_empty_auto_customer(customer)
+
+
+@transaction.atomic
+def hard_delete_supplier(supplier_or_id):
+    supplier_id = getattr(supplier_or_id, "id", supplier_or_id)
+    supplier = Supplier.objects.select_for_update().get(pk=supplier_id)
+    auto_customer = CustomerNode.objects.filter(name=f"Proveedor - {supplier.name}").first()
+    sale_ids = list(Sale.objects.filter(supplier=supplier).values_list("id", flat=True))
+
+    for sale_id in sale_ids:
+        hard_delete_sale(sale_id)
+
+    supplier.delete()
+    _delete_empty_auto_customer(auto_customer)
+
+
+@transaction.atomic
+def hard_delete_product(product_or_id):
+    product_id = getattr(product_or_id, "id", product_or_id)
+    product = Product.objects.select_for_update().get(pk=product_id)
+    sale_ids = list(SaleLine.objects.filter(product=product).values_list("sale_id", flat=True).distinct())
+
+    for sale_id in sale_ids:
+        hard_delete_sale(sale_id)
+
+    CustomerPrice.objects.filter(product=product).delete()
+    InventoryLot.objects.filter(product=product).delete()
+    PortionSize.objects.filter(product=product).delete()
+    product.delete()
 
 
 def _payment_allocations_from_request(customer, amount, requested_allocations):

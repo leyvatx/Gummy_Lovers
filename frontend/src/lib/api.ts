@@ -391,8 +391,8 @@ export function updateSupplier(id: string, payload: {
 }
 
 export function deleteSupplier(id: string) {
-  return request<void>(`/api/suppliers/${id}/deactivate/`, {
-    method: 'POST',
+  return request<void>(`/api/suppliers/${id}/`, {
+    method: 'DELETE',
   })
 }
 
@@ -408,8 +408,8 @@ export function updateProduct(id: string, payload: {
 }
 
 export function deleteProduct(id: string) {
-  return request<void>(`/api/products/${id}/deactivate/`, {
-    method: 'POST',
+  return request<void>(`/api/products/${id}/`, {
+    method: 'DELETE',
   })
 }
 
@@ -433,8 +433,8 @@ export function updateSale(id: string, payload: {
 }
 
 export function deleteSale(id: string) {
-  return request<void>(`/api/sales/${id}/cancel/`, {
-    method: 'POST',
+  return request<void>(`/api/sales/${id}/`, {
+    method: 'DELETE',
   })
 }
 

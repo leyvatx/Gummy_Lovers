@@ -356,24 +356,36 @@ class CoreAPITests(TestCase):
         self.assertEqual(str(response.data["sold_by_partner"]), str(self.partner_a.id))
         self.assertEqual(response.data["sold_by_partner_name"], "Efrain Leyva")
 
-    def test_sales_delete_cancels_sale_without_hard_delete(self):
+    def test_sales_delete_removes_sale_payments_and_restores_inventory(self):
         sale = services.create_sale(
             customer=self.customer,
             lines=[{"product": self.product, "portion": self.small, "portions_qty": 1}],
             sold_by_partner=self.partner_a,
         )
+        payment = services.record_customer_payment(
+            customer=self.customer,
+            amount=sale.total_amount,
+            received_at=timezone.now(),
+            method="cash",
+            sale_allocations=[{"sale": sale, "amount": sale.total_amount}],
+        )
+        lot = InventoryLot.objects.get(lot_code="L-001")
+        self.assertEqual(lot.remaining_grams, Decimal("985.000"))
 
         response = self.client.delete(f"/api/sales/{sale.id}/")
 
         self.assertEqual(response.status_code, 204)
-        sale.refresh_from_db()
-        self.assertEqual(sale.status, Sale.Status.CANCELLED)
+        self.assertFalse(Sale.objects.filter(id=sale.id).exists())
+        self.assertFalse(CustomerPayment.objects.filter(id=payment.id).exists())
+        self.assertFalse(SmartSplitAllocation.objects.exists())
+        lot.refresh_from_db()
+        self.assertEqual(lot.remaining_grams, Decimal("1000.000"))
 
         list_response = self.client.get("/api/sales/")
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.data, [])
 
-    def test_sales_cancel_action_cancels_sale(self):
+    def test_sales_cancel_action_hard_deletes_sale(self):
         sale = services.create_sale(
             customer=self.customer,
             lines=[{"product": self.product, "portion": self.small, "portions_qty": 1}],
@@ -383,22 +395,59 @@ class CoreAPITests(TestCase):
         response = self.client.post(f"/api/sales/{sale.id}/cancel/")
 
         self.assertEqual(response.status_code, 204)
-        sale.refresh_from_db()
-        self.assertEqual(sale.status, Sale.Status.CANCELLED)
+        self.assertFalse(Sale.objects.filter(id=sale.id).exists())
 
-    def test_supplier_and_product_deactivate_actions(self):
+    def test_supplier_and_product_delete_actions_remove_records_and_free_names(self):
         supplier = Supplier.objects.create(name="Proveedor Sur")
         product = Product.objects.create(sku="GOM-002", name="Gomita mango", grams_per_piece=Decimal("1.0000"))
+        PortionSize.objects.create(product=product, name="G1", pieces_per_portion=1, recovery_price=Decimal("15.00"))
 
-        supplier_response = self.client.post(f"/api/suppliers/{supplier.id}/deactivate/")
-        product_response = self.client.post(f"/api/products/{product.id}/deactivate/")
+        supplier_response = self.client.delete(f"/api/suppliers/{supplier.id}/")
+        product_response = self.client.delete(f"/api/products/{product.id}/")
 
         self.assertEqual(supplier_response.status_code, 204)
         self.assertEqual(product_response.status_code, 204)
-        supplier.refresh_from_db()
-        product.refresh_from_db()
-        self.assertFalse(supplier.active)
-        self.assertFalse(product.active)
+        self.assertFalse(Supplier.objects.filter(id=supplier.id).exists())
+        self.assertFalse(Product.objects.filter(id=product.id).exists())
+
+        supplier_recreated = Supplier.objects.create(name="Proveedor Sur")
+        product_recreated = Product.objects.create(
+            sku="GOM-002",
+            name="Gomita mango nueva",
+            grams_per_piece=Decimal("1.0000"),
+        )
+
+        self.assertEqual(supplier_recreated.name, "Proveedor Sur")
+        self.assertEqual(product_recreated.sku, "GOM-002")
+
+    def test_inactive_supplier_and_product_do_not_block_reuse(self):
+        Supplier.objects.create(name="Proveedor Fantasma", active=False)
+        Product.objects.create(
+            sku="GOM-999",
+            name="Gomita eliminada",
+            grams_per_piece=Decimal("1.0000"),
+            active=False,
+        )
+
+        supplier_response = self.client.post(
+            "/api/suppliers/",
+            {"name": "Proveedor Fantasma", "phone": "", "notes": "", "active": True},
+            format="json",
+        )
+        product_response = self.client.post(
+            "/api/products/",
+            {
+                "sku": "GOM-999",
+                "name": "Gomita nueva",
+                "wholesale_price": "0.00",
+                "grams_per_piece": "1.0000",
+                "active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(supplier_response.status_code, 201)
+        self.assertEqual(product_response.status_code, 201)
 
     def test_expense_endpoint_uses_authenticated_partner(self):
         self.partner_a.user = self.user

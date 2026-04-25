@@ -68,6 +68,24 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
   const extraPerUnit = Number.isFinite(price) ? price - recoveryUnitPrice : 0
   const directSaleExtra = Number.isFinite(quantity) ? extraPerUnit * quantity : 0
 
+  function selectProductDefaults(productId: string) {
+    const nextProduct = products.find((item) => item.id === productId)
+    const nextPortions = salePortions(nextProduct)
+    const nextPortion = nextPortions[0] ?? null
+
+    setProduct(nextProduct?.id ?? '')
+    setPortion(nextPortion?.id ?? '')
+    setUnitPrice(nextPortion ? String(recoveryPriceForPortion(nextPortion)) : '')
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen)
+
+    if (nextOpen && !products.some((item) => item.id === product)) {
+      selectProductDefaults(products[0]?.id ?? '')
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
@@ -103,7 +121,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         <Button className="quick-action-button max-sm:size-10 max-sm:px-0" title="Venta propia">
           <Candy />
@@ -114,7 +132,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Registrar venta propia</SheetTitle>
-          <SheetDescription>G1 recupera $15 y G2 recupera $30; el resto es ganancia o pérdida.</SheetDescription>
+          <SheetDescription>G1 recupera $15 y G2 recupera $30; puedes cambiar el precio de venta.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -128,12 +146,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
             <Select
               value={product}
               onValueChange={(value) => {
-                setProduct(value)
-                const nextProduct = products.find((item) => item.id === value)
-                const nextPortions = salePortions(nextProduct)
-                const nextPortion = nextPortions[0] ?? null
-                setPortion(nextPortion?.id ?? '')
-                setUnitPrice(nextPortion ? String(recoveryPriceForPortion(nextPortion)) : '')
+                selectProductDefaults(value)
               }}
             >
               <SelectTrigger id="direct-sale-product">
@@ -186,7 +199,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="direct-sale-price">Precio unitario</Label>
+              <Label htmlFor="direct-sale-price">Precio de venta editable</Label>
               <Input
                 id="direct-sale-price"
                 type="number"

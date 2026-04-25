@@ -58,6 +58,14 @@ class SupplierSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "partner", "partner_name", "phone", "notes", "active", "created_at", "updated_at"]
         read_only_fields = ["id", "partner_name", "created_at", "updated_at"]
 
+    def validate_name(self, value):
+        queryset = Supplier.objects.filter(name=value, active=True)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("Ya existe un proveedor activo con este nombre.")
+        return value
+
 
 class PortionSizeSerializer(serializers.ModelSerializer):
     product_sku = serializers.CharField(source="product.sku", read_only=True)
@@ -102,6 +110,14 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_available_grams(self, obj):
         return services.sum_grams(obj.lots.all(), "remaining_grams")
+
+    def validate_sku(self, value):
+        queryset = Product.objects.filter(sku=value, active=True)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("Ya existe un producto activo con este SKU.")
+        return value
 
     def create(self, validated_data):
         product = super().create(validated_data)

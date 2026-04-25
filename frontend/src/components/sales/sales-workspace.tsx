@@ -258,7 +258,7 @@ function SaleContextActions({
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar venta</AlertDialogTitle>
             <AlertDialogDescription>
-              La venta se cancelará y dejará de aparecer en el listado normal. Los registros relacionados se conservan para auditoría.
+              La venta se eliminará por completo. También se quitarán sus cobros y se regresará la existencia descontada.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="rounded-xl border bg-muted/45 p-3 text-sm">

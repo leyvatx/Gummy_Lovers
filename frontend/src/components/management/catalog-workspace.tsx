@@ -332,7 +332,7 @@ function SupplierContextActions({
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar proveedor</AlertDialogTitle>
             <AlertDialogDescription>
-              El proveedor se ocultará de la operación normal. Sus ventas existentes se conservan para historial.
+              El proveedor se eliminará por completo junto con sus ventas vinculadas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="rounded-xl border bg-muted/45 p-3 text-sm">
@@ -480,7 +480,7 @@ function ProductContextActions({
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar producto</AlertDialogTitle>
             <AlertDialogDescription>
-              El producto se ocultará del catálogo activo. Las ventas anteriores se conservan para historial.
+              El producto se eliminará por completo junto con su existencia y ventas vinculadas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="rounded-xl border bg-muted/45 p-3 text-sm">
