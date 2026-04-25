@@ -260,6 +260,19 @@ class SaleLineSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        recovery_amount = services.recovery_amount_for_sale_line(instance)
+        recovery_unit = services.money(instance.recovery_unit_price_snapshot)
+
+        if services.money(instance.recovery_amount) <= 0:
+            if recovery_unit <= 0:
+                recovery_unit = services.fixed_recovery_price_for_name(instance.portion.name)
+            data["recovery_unit_price_snapshot"] = f"{recovery_unit:.2f}"
+            data["recovery_amount"] = f"{recovery_amount:.2f}"
+
+        return data
+
 
 class SaleLineInputSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(active=True))

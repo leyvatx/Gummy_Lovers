@@ -222,8 +222,12 @@ function SupplierContextActions({
       return
     }
 
-    await deleteSupplier(supplier.id)
-    await onChanged()
+    try {
+      await deleteSupplier(supplier.id)
+      await onChanged()
+    } catch (deleteError) {
+      window.alert(errorMessage(deleteError, 'No se pudo eliminar el proveedor.'))
+    }
   }
 
   function openEdit() {
@@ -353,8 +357,12 @@ function ProductContextActions({
       return
     }
 
-    await deleteProduct(product.id)
-    await onChanged()
+    try {
+      await deleteProduct(product.id)
+      await onChanged()
+    } catch (deleteError) {
+      window.alert(errorMessage(deleteError, 'No se pudo eliminar el producto.'))
+    }
   }
 
   function openEdit() {

@@ -67,6 +67,18 @@ def recovery_price_for_portion(portion):
     return fixed_recovery_price_for_name(portion.name)
 
 
+def recovery_amount_for_sale_line(sale_line):
+    recovery_amount = money(getattr(sale_line, "recovery_amount", Decimal("0.00")))
+    if recovery_amount > 0:
+        return recovery_amount
+
+    recovery_unit = money(getattr(sale_line, "recovery_unit_price_snapshot", Decimal("0.00")))
+    if recovery_unit <= 0 and sale_line.portion_id:
+        recovery_unit = fixed_recovery_price_for_name(sale_line.portion.name)
+
+    return money(Decimal(sale_line.portions_qty) * recovery_unit)
+
+
 def ensure_fixed_sale_portions(product):
     PortionModel = product.portions.model
     for name, recovery_price in (("G1", G1_RECOVERY_PRICE), ("G2", G2_RECOVERY_PRICE)):
@@ -499,7 +511,8 @@ def _outstanding_inventory_reserves():
         paid_ratio = min(paid / sale.total_amount, Decimal("1.00"))
 
         for line in sale.lines.all():
-            eligible_cogs = line.recovery_amount if fully_paid else money(line.recovery_amount * paid_ratio)
+            recovery_amount = recovery_amount_for_sale_line(line)
+            eligible_cogs = recovery_amount if fully_paid else money(recovery_amount * paid_ratio)
             reserved = sum_amount(
                 SmartSplitAllocation.objects.filter(
                     type=SmartSplitAllocation.Type.INVENTORY_RESERVE,
@@ -524,7 +537,7 @@ def _pending_recovery_for_sale_line(sale_line):
             sale_line=sale_line,
         )
     )
-    return money(sale_line.recovery_amount - reserved)
+    return money(recovery_amount_for_sale_line(sale_line) - reserved)
 
 
 def _allocate_profit_to_partner(payment, partner, amount):

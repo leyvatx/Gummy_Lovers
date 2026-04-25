@@ -211,6 +211,40 @@ class CoreServiceTests(TestCase):
             Decimal("0.00"),
         )
 
+    def test_recovery_amount_falls_back_for_legacy_sale_lines(self):
+        sale = services.create_sale(
+            customer=self.customer,
+            lines=[{"product": self.product, "portion": self.small, "portions_qty": 2, "unit_price": Decimal("20.00")}],
+            sold_by_partner=self.partner_a,
+        )
+        line = sale.lines.get()
+        line.recovery_unit_price_snapshot = Decimal("0.00")
+        line.recovery_amount = Decimal("0.00")
+        line.save(update_fields=["recovery_unit_price_snapshot", "recovery_amount"])
+
+        payment = services.record_customer_payment(
+            customer=self.customer,
+            amount=Decimal("40.00"),
+            received_at=timezone.now(),
+            method="cash",
+            sale_allocations=[{"sale": sale, "amount": Decimal("40.00")}],
+        )
+
+        self.assertEqual(payment.amount, Decimal("40.00"))
+        self.assertEqual(services.recovery_amount_for_sale_line(line), Decimal("30.00"))
+        self.assertEqual(
+            services.sum_amount(
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.INVENTORY_RESERVE)
+            ),
+            Decimal("30.00"),
+        )
+        self.assertEqual(
+            services.sum_amount(
+                SmartSplitAllocation.objects.filter(type=SmartSplitAllocation.Type.PARTNER_PROFIT, partner=self.partner_a)
+            ),
+            Decimal("10.00"),
+        )
+
 
 class CoreAPITests(TestCase):
     def setUp(self):
@@ -321,6 +355,23 @@ class CoreAPITests(TestCase):
         self.assertEqual(response.data["channel"], Sale.Channel.WHOLESALE)
         self.assertEqual(str(response.data["sold_by_partner"]), str(self.partner_a.id))
         self.assertEqual(response.data["sold_by_partner_name"], "Efrain Leyva")
+
+    def test_sales_delete_cancels_sale_without_hard_delete(self):
+        sale = services.create_sale(
+            customer=self.customer,
+            lines=[{"product": self.product, "portion": self.small, "portions_qty": 1}],
+            sold_by_partner=self.partner_a,
+        )
+
+        response = self.client.delete(f"/api/sales/{sale.id}/")
+
+        self.assertEqual(response.status_code, 204)
+        sale.refresh_from_db()
+        self.assertEqual(sale.status, Sale.Status.CANCELLED)
+
+        list_response = self.client.get("/api/sales/")
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.data, [])
 
     def test_expense_endpoint_uses_authenticated_partner(self):
         self.partner_a.user = self.user

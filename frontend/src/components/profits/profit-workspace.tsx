@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Partner, SaleRecord, Supplier } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
-import { buildProfitSummary, type PartnerProfitStats } from '@/lib/profit-stats'
+import { buildProfitSummary, type PartnerProfitStats, type PortionProfitStats } from '@/lib/profit-stats'
 import { cn } from '@/lib/utils'
 
 type ProfitWorkspaceProps = {
@@ -87,6 +87,88 @@ function ChartBar({
   )
 }
 
+function SplitBar({
+  items,
+}: {
+  items: Array<{ label: string; value: number; tone: 'pink' | 'green' | 'red' | 'purple' }>
+}) {
+  const total = items.reduce((sum, item) => sum + Math.abs(item.value), 0)
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex h-4 overflow-hidden rounded-full bg-muted">
+        {items.map((item) => {
+          const width = total > 0 ? (Math.abs(item.value) / total) * 100 : 0
+          return (
+            <div
+              key={item.label}
+              className={cn('h-full', toneClasses[item.tone])}
+              style={{ width: `${width}%` }}
+              title={`${item.label}: ${formatMoney(item.value)}`}
+            />
+          )
+        })}
+      </div>
+      <div className="grid gap-2 text-sm">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <span className={cn('size-2.5 rounded-full border', toneClasses[item.tone])} />
+              {item.label}
+            </span>
+            <strong className="tabular-nums">{formatMoney(item.value)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SalesCompositionChart({
+  recoveryTarget,
+  grossProfit,
+  loss,
+}: {
+  recoveryTarget: number
+  grossProfit: number
+  loss: number
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Composición de venta</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-5">
+        <SplitBar
+          items={[
+            { label: 'Recuperado fijo', value: recoveryTarget, tone: 'purple' },
+            { label: 'Ganancia real', value: grossProfit, tone: 'green' },
+            { label: 'Pérdida', value: loss, tone: 'red' },
+          ]}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+function CollectionChart({ paid, receivable }: { paid: number; receivable: number }) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Cobranza</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-5">
+        <SplitBar
+          items={[
+            { label: 'Cobrado', value: paid, tone: 'pink' },
+            { label: 'Por cobrar', value: receivable, tone: 'red' },
+          ]}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
 function PartnerComparisonChart({ rows }: { rows: PartnerProfitStats[] }) {
   const maxValue = Math.max(
     1,
@@ -117,6 +199,63 @@ function PartnerComparisonChart({ rows }: { rows: PartnerProfitStats[] }) {
             <ChartBar label="Ganancia / pérdida" value={row.netProfit} max={maxValue} tone={row.netProfit < 0 ? 'red' : 'green'} />
           </div>
         ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function PartnerProfitShareChart({ rows }: { rows: PartnerProfitStats[] }) {
+  const maxValue = Math.max(1, ...rows.map((row) => Math.abs(row.netProfit)))
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Ganancia por socio</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-5 pt-5">
+        {rows.map((row) => (
+          <ChartBar
+            key={row.partner.id}
+            label={row.partner.name}
+            value={row.netProfit}
+            max={maxValue}
+            tone={row.netProfit < 0 ? 'red' : 'green'}
+          />
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function PortionBreakdownChart({ rows }: { rows: PortionProfitStats[] }) {
+  const maxValue = Math.max(1, ...rows.flatMap((row) => [row.revenue, row.recoveryTarget, Math.abs(row.netProfit)]))
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>G1 y G2</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-5 pt-5">
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Todavía no hay ventas.</p>
+        ) : (
+          rows.map((row) => (
+            <div key={row.label} className="grid gap-3 rounded-2xl border bg-background/55 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{row.label}</p>
+                  <p className="text-xs text-muted-foreground">{unitsLabel(row.units)}</p>
+                </div>
+                <Badge variant="outline" className={row.netProfit < 0 ? toneClasses.red : toneClasses.green}>
+                  {formatMoney(row.netProfit)}
+                </Badge>
+              </div>
+              <ChartBar label="Venta" value={row.revenue} max={maxValue} tone="pink" />
+              <ChartBar label="Recuperado" value={row.recoveryTarget} max={maxValue} tone="purple" />
+              <ChartBar label="Ganancia / pérdida" value={row.netProfit} max={maxValue} tone={row.netProfit < 0 ? 'red' : 'green'} />
+            </div>
+          ))
+        )}
       </CardContent>
     </Card>
   )
@@ -277,6 +416,43 @@ function ProfitWorkspace({ partners, sales, suppliers }: ProfitWorkspaceProps) {
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
         <PartnerComparisonChart rows={summary.partnerRows} />
         <ChannelComparison rows={summary.partnerRows} />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-4">
+        <div className="xl:col-span-2">
+          <SalesCompositionChart
+            recoveryTarget={summary.recoveryTarget}
+            grossProfit={summary.grossProfit}
+            loss={summary.loss}
+          />
+        </div>
+        <CollectionChart paid={summary.paid} receivable={summary.receivable} />
+        <PartnerProfitShareChart rows={summary.partnerRows} />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <PortionBreakdownChart rows={summary.portionRows} />
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>Indicadores</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 pt-5 text-sm">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">
+              <span className="text-muted-foreground">Margen neto</span>
+              <strong className="tabular-nums">{margin}</strong>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">
+              <span className="text-muted-foreground">Piezas vendidas</span>
+              <strong className="tabular-nums">{unitsLabel(summary.units)}</strong>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">
+              <span className="text-muted-foreground">Socio con mayor ganancia</span>
+              <strong className="tabular-nums">
+                {[...summary.partnerRows].sort((left, right) => right.netProfit - left.netProfit)[0]?.partner.name ?? 'Sin ventas'}
+              </strong>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {summary.unassigned.revenue > 0 ? (

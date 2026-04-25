@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { deleteSale, toNumber, updateSale, type ApiError, type SaleRecord, type SaleStatus } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
+import { saleProfitAmount, saleRecoveryAmount } from '@/lib/profit-stats'
 
 type SalesWorkspaceProps = {
   sales: SaleRecord[]
@@ -92,14 +93,6 @@ function saleProductLabel(sale: SaleRecord) {
   }
 
   return sale.lines.map((line) => `${line.product_sku} ${line.portion_name} x${line.portions_qty}`).join(', ')
-}
-
-function saleRecoveryAmount(sale: SaleRecord) {
-  return sale.lines.reduce((sum, line) => sum + toNumber(line.recovery_amount), 0)
-}
-
-function saleMargin(sale: SaleRecord) {
-  return toNumber(sale.total_amount) - saleRecoveryAmount(sale)
 }
 
 function matchesSaleQuery(sale: SaleRecord, query: string) {
@@ -216,7 +209,7 @@ function SaleContextActions({
                 <FieldRow label="Registro" value={salePartyLabel(sale)} />
                 <FieldRow label="Productos" value={saleProductLabel(sale)} />
                 <FieldRow label="Recuperado fijo" value={<span className="tabular-nums">{formatMoney(saleRecoveryAmount(sale))}</span>} />
-                <FieldRow label="Ganancia / pérdida" value={<span className="font-semibold tabular-nums">{formatMoney(saleMargin(sale))}</span>} />
+                <FieldRow label="Ganancia / pérdida" value={<span className="font-semibold tabular-nums">{formatMoney(saleProfitAmount(sale))}</span>} />
                 <FieldRow label="Total" value={<span className="font-semibold tabular-nums">{formatMoney(sale.total_amount)}</span>} />
                 <FieldRow label="Pagado" value={<span className="tabular-nums">{formatMoney(sale.paid_amount)}</span>} />
                 <FieldRow label="Pendiente" value={<span className="tabular-nums">{formatMoney(sale.outstanding_balance)}</span>} />

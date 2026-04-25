@@ -173,7 +173,15 @@ class SaleViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(customer_id=customer_id)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
+        else:
+            queryset = queryset.exclude(status=Sale.Status.CANCELLED)
         return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        sale = self.get_object()
+        sale.status = Sale.Status.CANCELLED
+        sale.save(update_fields=["status", "updated_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DirectSaleAPIView(APIView):
