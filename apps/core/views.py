@@ -193,6 +193,30 @@ class SaleViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class SupplierDeactivateAPIView(APIView):
+    def post(self, request, pk):
+        updated = Supplier.objects.filter(pk=pk).update(active=False)
+        if not updated:
+            return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProductDeactivateAPIView(APIView):
+    def post(self, request, pk):
+        updated = Product.objects.filter(pk=pk).update(active=False)
+        if not updated:
+            return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SaleCancelAPIView(APIView):
+    def post(self, request, pk):
+        updated = Sale.objects.filter(pk=pk).update(status=Sale.Status.CANCELLED)
+        if not updated:
+            return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class DirectSaleAPIView(APIView):
     def post(self, request):
         serializer = DirectSaleSerializer(data=request.data, context={"request": request})

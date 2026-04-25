@@ -25,5 +25,8 @@ urlpatterns = [
     path("dashboard/financial/", views.FinancialDashboardAPIView.as_view(), name="financial-dashboard"),
     path("sales/direct/", views.DirectSaleAPIView.as_view(), name="direct-sale"),
     path("sales/supplier/", views.SupplierSaleAPIView.as_view(), name="supplier-sale"),
+    path("sales/<uuid:pk>/cancel/", views.SaleCancelAPIView.as_view(), name="sale-cancel-direct"),
+    path("suppliers/<uuid:pk>/deactivate/", views.SupplierDeactivateAPIView.as_view(), name="supplier-deactivate-direct"),
+    path("products/<uuid:pk>/deactivate/", views.ProductDeactivateAPIView.as_view(), name="product-deactivate-direct"),
     *router.urls,
 ]

@@ -1,3 +1,5 @@
+import os
+
 from django.contrib import admin
 from django.conf import settings
 from django.http import JsonResponse
@@ -7,7 +9,7 @@ from django.views.generic import TemplateView
 
 
 def healthcheck(_request):
-    return JsonResponse({"status": "ok"})
+    return JsonResponse({"status": "ok", "commit": os.environ.get("RENDER_GIT_COMMIT", "local")})
 
 
 urlpatterns = [
