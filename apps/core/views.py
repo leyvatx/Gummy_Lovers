@@ -70,6 +70,11 @@ class SupplierViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
         Supplier.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(active=False)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, pk=None):
+        Supplier.objects.filter(pk=pk).update(active=False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
     queryset = Product.objects.prefetch_related("portions", "lots").all()
@@ -80,6 +85,11 @@ class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         Product.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(active=False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, pk=None):
+        Product.objects.filter(pk=pk).update(active=False)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -175,6 +185,11 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         Sale.objects.filter(pk=kwargs.get(self.lookup_url_kwarg or self.lookup_field)).update(status=Sale.Status.CANCELLED)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        Sale.objects.filter(pk=pk).update(status=Sale.Status.CANCELLED)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -243,6 +243,14 @@ function extractApiMessage(payload: unknown): string {
   return ''
 }
 
+function compactResponseText(value: string) {
+  return value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240)
+}
+
 async function request<T>(path: string, options: RequestInit = {}) {
   const authToken = getStoredAuthToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -255,18 +263,38 @@ async function request<T>(path: string, options: RequestInit = {}) {
   })
 
   const contentType = response.headers.get('content-type') ?? ''
-  const payload = contentType.includes('application/json') ? await response.json() : null
+  const isJson = contentType.includes('application/json')
+  const payload = isJson ? await response.json() : null
+  const textPayload = isJson ? '' : await response.text()
 
   if (!response.ok) {
     if (response.status === 401) {
       clearStoredAuthToken()
     }
 
-    const message = extractApiMessage(payload) || 'La API no pudo procesar la operación.'
+    const responseText = compactResponseText(textPayload)
+    const message = extractApiMessage(payload)
+      || (responseText ? `Error ${response.status}: ${responseText}` : `Error ${response.status}: la API no pudo procesar la operación.`)
     throw { message, status: response.status, detail: payload } satisfies ApiError
   }
 
   return payload as T
+}
+
+async function requestWithFallback<T>(
+  primary: { path: string; options: RequestInit },
+  fallback: { path: string; options: RequestInit },
+) {
+  try {
+    return await request<T>(primary.path, primary.options)
+  } catch (error) {
+    const status = (error as ApiError).status
+    if (status === 404 || status === 405) {
+      return request<T>(fallback.path, fallback.options)
+    }
+
+    throw error
+  }
 }
 
 export async function login(payload: { email: string; password: string }) {
@@ -379,9 +407,10 @@ export function updateSupplier(id: string, payload: {
 }
 
 export function deleteSupplier(id: string) {
-  return request<void>(`/api/suppliers/${id}/`, {
-    method: 'DELETE',
-  })
+  return requestWithFallback<void>(
+    { path: `/api/suppliers/${id}/deactivate/`, options: { method: 'POST' } },
+    { path: `/api/suppliers/${id}/`, options: { method: 'DELETE' } },
+  )
 }
 
 export function updateProduct(id: string, payload: {
@@ -396,9 +425,10 @@ export function updateProduct(id: string, payload: {
 }
 
 export function deleteProduct(id: string) {
-  return request<void>(`/api/products/${id}/`, {
-    method: 'DELETE',
-  })
+  return requestWithFallback<void>(
+    { path: `/api/products/${id}/deactivate/`, options: { method: 'POST' } },
+    { path: `/api/products/${id}/`, options: { method: 'DELETE' } },
+  )
 }
 
 export function updatePartner(id: string, payload: {
@@ -421,9 +451,10 @@ export function updateSale(id: string, payload: {
 }
 
 export function deleteSale(id: string) {
-  return request<void>(`/api/sales/${id}/`, {
-    method: 'DELETE',
-  })
+  return requestWithFallback<void>(
+    { path: `/api/sales/${id}/cancel/`, options: { method: 'POST' } },
+    { path: `/api/sales/${id}/`, options: { method: 'DELETE' } },
+  )
 }
 
 export function createPortion(payload: {

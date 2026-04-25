@@ -373,6 +373,33 @@ class CoreAPITests(TestCase):
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.data, [])
 
+    def test_sales_cancel_action_cancels_sale(self):
+        sale = services.create_sale(
+            customer=self.customer,
+            lines=[{"product": self.product, "portion": self.small, "portions_qty": 1}],
+            sold_by_partner=self.partner_a,
+        )
+
+        response = self.client.post(f"/api/sales/{sale.id}/cancel/")
+
+        self.assertEqual(response.status_code, 204)
+        sale.refresh_from_db()
+        self.assertEqual(sale.status, Sale.Status.CANCELLED)
+
+    def test_supplier_and_product_deactivate_actions(self):
+        supplier = Supplier.objects.create(name="Proveedor Sur")
+        product = Product.objects.create(sku="GOM-002", name="Gomita mango", grams_per_piece=Decimal("1.0000"))
+
+        supplier_response = self.client.post(f"/api/suppliers/{supplier.id}/deactivate/")
+        product_response = self.client.post(f"/api/products/{product.id}/deactivate/")
+
+        self.assertEqual(supplier_response.status_code, 204)
+        self.assertEqual(product_response.status_code, 204)
+        supplier.refresh_from_db()
+        product.refresh_from_db()
+        self.assertFalse(supplier.active)
+        self.assertFalse(product.active)
+
     def test_expense_endpoint_uses_authenticated_partner(self):
         self.partner_a.user = self.user
         self.partner_a.name = "Efrain Leyva"
