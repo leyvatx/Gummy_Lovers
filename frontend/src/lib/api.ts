@@ -281,22 +281,6 @@ async function request<T>(path: string, options: RequestInit = {}) {
   return payload as T
 }
 
-async function requestWithFallback<T>(
-  primary: { path: string; options: RequestInit },
-  fallback: { path: string; options: RequestInit },
-) {
-  try {
-    return await request<T>(primary.path, primary.options)
-  } catch (error) {
-    const status = (error as ApiError).status
-    if (status === 404 || status === 405) {
-      return request<T>(fallback.path, fallback.options)
-    }
-
-    throw error
-  }
-}
-
 export async function login(payload: { email: string; password: string }) {
   const authPayload = await request<AuthPayload>('/api/auth/login/', {
     method: 'POST',
@@ -407,10 +391,9 @@ export function updateSupplier(id: string, payload: {
 }
 
 export function deleteSupplier(id: string) {
-  return requestWithFallback<void>(
-    { path: `/api/suppliers/${id}/deactivate/`, options: { method: 'POST' } },
-    { path: `/api/suppliers/${id}/`, options: { method: 'DELETE' } },
-  )
+  return request<void>(`/api/suppliers/${id}/deactivate/`, {
+    method: 'POST',
+  })
 }
 
 export function updateProduct(id: string, payload: {
@@ -425,10 +408,9 @@ export function updateProduct(id: string, payload: {
 }
 
 export function deleteProduct(id: string) {
-  return requestWithFallback<void>(
-    { path: `/api/products/${id}/deactivate/`, options: { method: 'POST' } },
-    { path: `/api/products/${id}/`, options: { method: 'DELETE' } },
-  )
+  return request<void>(`/api/products/${id}/deactivate/`, {
+    method: 'POST',
+  })
 }
 
 export function updatePartner(id: string, payload: {
@@ -451,10 +433,9 @@ export function updateSale(id: string, payload: {
 }
 
 export function deleteSale(id: string) {
-  return requestWithFallback<void>(
-    { path: `/api/sales/${id}/cancel/`, options: { method: 'POST' } },
-    { path: `/api/sales/${id}/`, options: { method: 'DELETE' } },
-  )
+  return request<void>(`/api/sales/${id}/cancel/`, {
+    method: 'POST',
+  })
 }
 
 export function createPortion(payload: {

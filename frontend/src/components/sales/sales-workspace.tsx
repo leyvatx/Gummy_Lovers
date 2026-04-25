@@ -2,6 +2,16 @@ import { type FormEvent, useMemo, useState } from 'react'
 import { Eye, Pencil, ReceiptText, Trash2 } from 'lucide-react'
 
 import type { SaleChannelFilter, SaleStatusFilter } from '@/components/sales/sales-filters'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -138,6 +148,9 @@ function SaleContextActions({
   const [notes, setNotes] = useState(sale.notes)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   async function handleEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -155,16 +168,17 @@ function SaleContextActions({
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm('¿Eliminar esta venta?')) {
-      return
-    }
-
+  async function handleDeleteConfirm() {
+    setDeleteError('')
+    setIsDeleting(true)
     try {
       await deleteSale(sale.id)
+      setIsDeleteOpen(false)
       await onChanged()
     } catch (deleteError) {
-      window.alert(errorMessage(deleteError, 'No se pudo eliminar la venta.'))
+      setDeleteError(errorMessage(deleteError, 'No se pudo eliminar la venta.'))
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -183,7 +197,7 @@ function SaleContextActions({
         items={[
           { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
           { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: openEdit },
-          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
+          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => setIsDeleteOpen(true) },
         ]}
       />
 
@@ -238,6 +252,35 @@ function SaleContextActions({
           ) : null}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar venta</AlertDialogTitle>
+            <AlertDialogDescription>
+              La venta se cancelará y dejará de aparecer en el listado normal. Los registros relacionados se conservan para auditoría.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-xl border bg-muted/45 p-3 text-sm">
+            <p className="font-medium">{channelLabel(sale)}</p>
+            <p className="text-xs text-muted-foreground">{saleProductLabel(sale)}</p>
+          </div>
+          {deleteError ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{deleteError}</p> : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteConfirm()
+              }}
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

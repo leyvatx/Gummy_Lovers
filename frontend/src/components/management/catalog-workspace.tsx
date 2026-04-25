@@ -2,6 +2,16 @@ import { type FormEvent, type HTMLAttributes, type ReactNode, useMemo, useState 
 import { Candy, Eye, Pencil, Search, Store, Trash2 } from 'lucide-react'
 
 import type { AppSection } from '@/components/layout/app-sidebar'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -195,6 +205,9 @@ function SupplierContextActions({
   const [notes, setNotes] = useState(supplier.notes)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   async function handleEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -217,16 +230,17 @@ function SupplierContextActions({
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm(`¿Eliminar proveedor "${supplier.name}"?`)) {
-      return
-    }
-
+  async function handleDeleteConfirm() {
+    setDeleteError('')
+    setIsDeleting(true)
     try {
       await deleteSupplier(supplier.id)
+      setIsDeleteOpen(false)
       await onChanged()
     } catch (deleteError) {
-      window.alert(errorMessage(deleteError, 'No se pudo eliminar el proveedor.'))
+      setDeleteError(errorMessage(deleteError, 'No se pudo eliminar el proveedor.'))
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -248,7 +262,7 @@ function SupplierContextActions({
         items={[
           { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
           { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: openEdit },
-          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
+          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => setIsDeleteOpen(true) },
         ]}
       />
 
@@ -312,6 +326,35 @@ function SupplierContextActions({
           ) : null}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar proveedor</AlertDialogTitle>
+            <AlertDialogDescription>
+              El proveedor se ocultará de la operación normal. Sus ventas existentes se conservan para historial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-xl border bg-muted/45 p-3 text-sm">
+            <p className="font-medium">{supplier.name}</p>
+            <p className="text-xs text-muted-foreground">{supplier.partner_name || 'Sin socio vinculado'}</p>
+          </div>
+          {deleteError ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{deleteError}</p> : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteConfirm()
+              }}
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
@@ -332,6 +375,9 @@ function ProductContextActions({
   const [name, setName] = useState(product.name)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   async function handleEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -352,16 +398,17 @@ function ProductContextActions({
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm(`¿Eliminar producto "${product.name}"?`)) {
-      return
-    }
-
+  async function handleDeleteConfirm() {
+    setDeleteError('')
+    setIsDeleting(true)
     try {
       await deleteProduct(product.id)
+      setIsDeleteOpen(false)
       await onChanged()
     } catch (deleteError) {
-      window.alert(errorMessage(deleteError, 'No se pudo eliminar el producto.'))
+      setDeleteError(errorMessage(deleteError, 'No se pudo eliminar el producto.'))
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -381,7 +428,7 @@ function ProductContextActions({
         items={[
           { icon: <Eye className="size-4" />, label: 'Ver detalles', onSelect: () => setMode('details') },
           { icon: <Pencil className="size-4" />, label: 'Editar', onSelect: openEdit },
-          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => void handleDelete() },
+          { destructive: true, icon: <Trash2 className="size-4" />, label: 'Eliminar', onSelect: () => setIsDeleteOpen(true) },
         ]}
       />
 
@@ -427,6 +474,35 @@ function ProductContextActions({
           ) : null}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar producto</AlertDialogTitle>
+            <AlertDialogDescription>
+              El producto se ocultará del catálogo activo. Las ventas anteriores se conservan para historial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-xl border bg-muted/45 p-3 text-sm">
+            <p className="font-medium">{product.name}</p>
+            <p className="text-xs text-muted-foreground">{product.sku}</p>
+          </div>
+          {deleteError ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{deleteError}</p> : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeleteConfirm()
+              }}
+            >
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
