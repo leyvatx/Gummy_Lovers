@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/sheet'
 import { createDirectSale, toNumber, type ApiError, type AuthUser, type Product } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
-import { recoveryPriceForPortion, salePortionLabel, salePortions } from '@/lib/sale-units'
+import { productRecoveryPrice, salePortionForProduct } from '@/lib/sale-units'
 
 type DirectSaleActionProps = {
   user: AuthUser
@@ -44,7 +44,6 @@ function formatUnits(value: string | number) {
 function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) {
   const [open, setOpen] = useState(false)
   const [product, setProduct] = useState('')
-  const [portion, setPortion] = useState('')
   const [quantityValue, setQuantityValue] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
   const [method, setMethod] = useState('cash')
@@ -56,26 +55,19 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
     () => products.find((item) => item.id === product),
     [product, products],
   )
-  const availablePortions = useMemo(() => salePortions(selectedProduct), [selectedProduct])
-  const selectedUnit = useMemo(
-    () => availablePortions.find((item) => item.id === portion) ?? null,
-    [availablePortions, portion],
-  )
+  const selectedUnit = useMemo(() => salePortionForProduct(selectedProduct), [selectedProduct])
   const quantity = Number(quantityValue)
   const price = Number(unitPrice)
   const saleTotal = Number.isFinite(quantity) && Number.isFinite(price) ? quantity * price : 0
-  const recoveryUnitPrice = recoveryPriceForPortion(selectedUnit)
+  const recoveryUnitPrice = productRecoveryPrice(selectedProduct)
   const extraPerUnit = Number.isFinite(price) ? price - recoveryUnitPrice : 0
   const directSaleExtra = Number.isFinite(quantity) ? extraPerUnit * quantity : 0
 
   function selectProductDefaults(productId: string) {
     const nextProduct = products.find((item) => item.id === productId)
-    const nextPortions = salePortions(nextProduct)
-    const nextPortion = nextPortions[0] ?? null
 
     setProduct(nextProduct?.id ?? '')
-    setPortion(nextPortion?.id ?? '')
-    setUnitPrice(nextPortion ? String(recoveryPriceForPortion(nextPortion)) : '')
+    setUnitPrice(nextProduct ? String(productRecoveryPrice(nextProduct)) : '')
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -90,8 +82,13 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
     event.preventDefault()
     setError('')
 
-    if (!selectedUnit) {
-      setError('Este producto no tiene una unidad interna para vender. Vuelve a crearlo desde Productos.')
+    if (!selectedProduct || !selectedUnit) {
+      setError('Este producto no tiene unidad interna para vender. Vuelve a guardarlo desde Productos.')
+      return
+    }
+
+    if (recoveryUnitPrice <= 0) {
+      setError('Configura el precio a recuperar de este producto antes de vender.')
       return
     }
 
@@ -99,7 +96,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
 
     try {
       await createDirectSale({
-        product,
+        product: selectedProduct.id,
         portion: selectedUnit.id,
         portions_qty: Number(quantityValue),
         unit_price: unitPrice,
@@ -108,7 +105,6 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
       })
       setOpen(false)
       setProduct('')
-      setPortion('')
       setQuantityValue('1')
       setUnitPrice('')
       setReference('')
@@ -132,7 +128,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Registrar venta propia</SheetTitle>
-          <SheetDescription>G1 recupera $15 y G2 recupera $30; puedes cambiar el precio de venta.</SheetDescription>
+          <SheetDescription>El precio a recuperar sale del producto; puedes cambiar el precio de venta.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -142,43 +138,15 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="direct-sale-product">Producto</Label>
-            <Select
-              value={product}
-              onValueChange={(value) => {
-                selectProductDefaults(value)
-              }}
-            >
+            <Label htmlFor="direct-sale-product">Nombre</Label>
+            <Select value={product} onValueChange={selectProductDefaults}>
               <SelectTrigger id="direct-sale-product">
-                <SelectValue placeholder="Selecciona producto" />
+                <SelectValue placeholder="Selecciona nombre" />
               </SelectTrigger>
               <SelectContent>
                 {products.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    {item.name} · {formatUnits(item.available_grams)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="direct-sale-portion">Tipo</Label>
-            <Select
-              value={portion}
-              onValueChange={(value) => {
-                setPortion(value)
-                const nextPortion = availablePortions.find((item) => item.id === value)
-                setUnitPrice(nextPortion ? String(recoveryPriceForPortion(nextPortion)) : '')
-              }}
-            >
-              <SelectTrigger id="direct-sale-portion">
-                <SelectValue placeholder="Selecciona G1 o G2" />
-              </SelectTrigger>
-              <SelectContent>
-                {availablePortions.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {salePortionLabel(item)}
+                    {item.name} · {formatUnits(item.available_grams)} · recupera {formatMoney(productRecoveryPrice(item))}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -199,7 +167,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="direct-sale-price">Precio de venta editable</Label>
+              <Label htmlFor="direct-sale-price">Precio de venta</Label>
               <Input
                 id="direct-sale-price"
                 type="number"
@@ -239,7 +207,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
 
           <div className="rounded-xl border bg-background/55 p-3 text-sm">
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Recuperado fijo</span>
+              <span className="text-muted-foreground">Precio a recuperar</span>
               <span className="font-medium tabular-nums">{formatMoney(recoveryUnitPrice)}</span>
             </div>
             <div className="mt-2 flex justify-between gap-3">
@@ -255,7 +223,7 @@ function DirectSaleAction({ user, products, onCreated }: DirectSaleActionProps) 
 
           {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-          <Button type="submit" disabled={isSaving || !product || !selectedUnit || !unitPrice || products.length === 0}>
+          <Button type="submit" disabled={isSaving || !selectedProduct || !selectedUnit || !unitPrice || products.length === 0}>
             {isSaving ? 'Guardando...' : 'Guardar venta'}
           </Button>
         </form>

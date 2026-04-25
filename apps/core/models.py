@@ -101,6 +101,12 @@ class Product(BaseModel):
         default=Decimal("0.00"),
         validators=[MinValueValidator(Decimal("0.00"))],
     )
+    recovery_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     grams_per_piece = models.DecimalField(
         max_digits=10,
         decimal_places=4,
@@ -121,6 +127,7 @@ class Product(BaseModel):
                 name="uniq_active_product_sku",
             ),
             models.CheckConstraint(condition=Q(wholesale_price__gte=0), name="product_wholesale_price_gte_0"),
+            models.CheckConstraint(condition=Q(recovery_price__gte=0), name="product_recovery_price_gte_0"),
         ]
 
 

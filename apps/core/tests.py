@@ -26,7 +26,12 @@ class CoreServiceTests(TestCase):
         self.partner_a = Partner.objects.create(code="A", name="Ana")
         self.partner_b = Partner.objects.create(code="B", name="Beto")
         self.customer = CustomerNode.objects.create(name="Cliente Centro")
-        self.product = Product.objects.create(sku="GOM-001", name="Gomita enchilada", grams_per_piece=Decimal("2.5000"))
+        self.product = Product.objects.create(
+            sku="GOM-001",
+            name="Gomita enchilada",
+            grams_per_piece=Decimal("2.5000"),
+            recovery_price=Decimal("15.00"),
+        )
         self.small = PortionSize.objects.create(product=self.product, name="Chico", pieces_per_portion=6)
         CustomerPrice.objects.create(
             customer=self.customer,
@@ -183,7 +188,7 @@ class CoreServiceTests(TestCase):
             Decimal("20.00"),
         )
 
-    def test_direct_sale_below_fixed_recovery_records_loss(self):
+    def test_direct_sale_below_recovery_price_records_loss(self):
         sale, payment = services.create_direct_sale(
             partner=self.partner_a,
             product=self.product,
@@ -260,7 +265,12 @@ class CoreAPITests(TestCase):
         self.partner_a = Partner.objects.create(code="A", name="Ana")
         self.partner_b = Partner.objects.create(code="B", name="Beto")
         self.customer = CustomerNode.objects.create(name="Cliente Centro")
-        self.product = Product.objects.create(sku="GOM-001", name="Gomita enchilada", grams_per_piece=Decimal("2.5000"))
+        self.product = Product.objects.create(
+            sku="GOM-001",
+            name="Gomita enchilada",
+            grams_per_piece=Decimal("2.5000"),
+            recovery_price=Decimal("15.00"),
+        )
         self.small = PortionSize.objects.create(product=self.product, name="Chico", pieces_per_portion=6)
         CustomerPrice.objects.create(
             customer=self.customer,
@@ -399,8 +409,13 @@ class CoreAPITests(TestCase):
 
     def test_supplier_and_product_delete_actions_remove_records_and_free_names(self):
         supplier = Supplier.objects.create(name="Proveedor Sur")
-        product = Product.objects.create(sku="GOM-002", name="Gomita mango", grams_per_piece=Decimal("1.0000"))
-        PortionSize.objects.create(product=product, name="G1", pieces_per_portion=1, recovery_price=Decimal("15.00"))
+        product = Product.objects.create(
+            sku="GOM-002",
+            name="Gomita mango",
+            grams_per_piece=Decimal("1.0000"),
+            recovery_price=Decimal("15.00"),
+        )
+        PortionSize.objects.create(product=product, name=services.DEFAULT_PORTION_NAME, pieces_per_portion=1)
 
         supplier_response = self.client.delete(f"/api/suppliers/{supplier.id}/")
         product_response = self.client.delete(f"/api/products/{product.id}/")
@@ -415,6 +430,7 @@ class CoreAPITests(TestCase):
             sku="GOM-002",
             name="Gomita mango nueva",
             grams_per_piece=Decimal("1.0000"),
+            recovery_price=Decimal("15.00"),
         )
 
         self.assertEqual(supplier_recreated.name, "Proveedor Sur")
@@ -426,6 +442,7 @@ class CoreAPITests(TestCase):
             sku="GOM-999",
             name="Gomita eliminada",
             grams_per_piece=Decimal("1.0000"),
+            recovery_price=Decimal("15.00"),
             active=False,
         )
 
@@ -448,6 +465,39 @@ class CoreAPITests(TestCase):
 
         self.assertEqual(supplier_response.status_code, 201)
         self.assertEqual(product_response.status_code, 201)
+
+    def test_product_endpoint_allows_editing_recovery_price(self):
+        create_response = self.client.post(
+            "/api/products/",
+            {
+                "sku": "GOM-REC",
+                "name": "Gomita con precio editable",
+                "wholesale_price": "0.00",
+                "grams_per_piece": "1.0000",
+                "recovery_price": "18.00",
+                "active": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(create_response.status_code, 201)
+        self.assertEqual(create_response.data["recovery_price"], "18.00")
+
+        product = Product.objects.get(id=create_response.data["id"])
+        portion = PortionSize.objects.get(product=product, name=services.DEFAULT_PORTION_NAME)
+        self.assertEqual(product.recovery_price, Decimal("18.00"))
+        self.assertEqual(portion.recovery_price, Decimal("0.00"))
+
+        update_response = self.client.patch(
+            f"/api/products/{product.id}/",
+            {"recovery_price": "22.50"},
+            format="json",
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(update_response.data["recovery_price"], "22.50")
+        product.refresh_from_db()
+        self.assertEqual(product.recovery_price, Decimal("22.50"))
 
     def test_expense_endpoint_uses_authenticated_partner(self):
         self.partner_a.user = self.user

@@ -141,7 +141,7 @@ function SalesCompositionChart({
       <CardContent className="pt-5">
         <SplitBar
           items={[
-            { label: 'Recuperado fijo', value: recoveryTarget, tone: 'purple' },
+            { label: 'Precio recuperado', value: recoveryTarget, tone: 'purple' },
             { label: 'Ganancia real', value: grossProfit, tone: 'green' },
             { label: 'Pérdida', value: loss, tone: 'red' },
           ]}
@@ -195,7 +195,7 @@ function PartnerComparisonChart({ rows }: { rows: PartnerProfitStats[] }) {
               </Badge>
             </div>
             <ChartBar label="Venta total" value={row.revenue} max={maxValue} tone="pink" />
-            <ChartBar label="Recuperado fijo" value={row.recoveryTarget} max={maxValue} tone="purple" />
+            <ChartBar label="Precio recuperado" value={row.recoveryTarget} max={maxValue} tone="purple" />
             <ChartBar label="Ganancia / pérdida" value={row.netProfit} max={maxValue} tone={row.netProfit < 0 ? 'red' : 'green'} />
           </div>
         ))}
@@ -233,7 +233,7 @@ function PortionBreakdownChart({ rows }: { rows: PortionProfitStats[] }) {
   return (
     <Card>
       <CardHeader className="border-b">
-        <CardTitle>G1 y G2</CardTitle>
+        <CardTitle>Productos</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5 pt-5">
         {rows.length === 0 ? (
@@ -251,7 +251,7 @@ function PortionBreakdownChart({ rows }: { rows: PortionProfitStats[] }) {
                 </Badge>
               </div>
               <ChartBar label="Venta" value={row.revenue} max={maxValue} tone="pink" />
-              <ChartBar label="Recuperado" value={row.recoveryTarget} max={maxValue} tone="purple" />
+              <ChartBar label="Precio recuperado" value={row.recoveryTarget} max={maxValue} tone="purple" />
               <ChartBar label="Ganancia / pérdida" value={row.netProfit} max={maxValue} tone={row.netProfit < 0 ? 'red' : 'green'} />
             </div>
           ))
@@ -306,7 +306,7 @@ function PartnerProfitTable({ rows }: { rows: PartnerProfitStats[] }) {
               </div>
               <dl className="mt-4 grid gap-2 text-sm">
                 <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">Recuperado fijo</dt>
+                  <dt className="text-muted-foreground">Precio recuperado</dt>
                   <dd className="font-medium tabular-nums">{formatMoney(row.recoveryTarget)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
@@ -334,7 +334,7 @@ function PartnerProfitTable({ rows }: { rows: PartnerProfitStats[] }) {
                 <th className="px-4 py-3 font-medium">Proveedores</th>
                 <th className="px-4 py-3 font-medium">Venta propia</th>
                 <th className="px-4 py-3 font-medium">Venta a proveedores</th>
-                <th className="px-4 py-3 font-medium">Recuperado fijo</th>
+                <th className="px-4 py-3 font-medium">Precio recuperado</th>
                 <th className="px-4 py-3 font-medium">Ganancia</th>
                 <th className="px-4 py-3 font-medium">Pérdida</th>
                 <th className="px-4 py-3 font-medium">Neto</th>
@@ -386,12 +386,12 @@ function ProfitWorkspace({ partners, sales, suppliers }: ProfitWorkspaceProps) {
         <StatCard
           title="Ganancia neta"
           value={formatMoney(summary.netProfit)}
-          helper={`Margen ${margin}, después de recuperar G1/G2`}
+          helper={`Margen ${margin}, después de recuperar el precio base`}
           icon={BadgeDollarSign}
           tone={summary.netProfit < 0 ? 'red' : 'green'}
         />
         <StatCard
-          title="Recuperado fijo"
+          title="Precio recuperado"
           value={formatMoney(summary.recoveryTarget)}
           helper={`${formatMoney(summary.recoveryCollected)} ya cobrado como recuperación`}
           icon={Scale}
@@ -400,14 +400,14 @@ function ProfitWorkspace({ partners, sales, suppliers }: ProfitWorkspaceProps) {
         <StatCard
           title="Ganancias"
           value={formatMoney(summary.grossProfit)}
-          helper="Importe arriba de $15 en G1 y $30 en G2"
+          helper="Importe arriba del precio a recuperar"
           icon={WalletCards}
           tone="pink"
         />
         <StatCard
           title="Pérdidas"
           value={formatMoney(summary.loss)}
-          helper="Ventas debajo del recuperado fijo"
+          helper="Ventas debajo del precio a recuperar"
           icon={TrendingDown}
           tone="red"
         />

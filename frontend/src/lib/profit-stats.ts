@@ -1,14 +1,5 @@
 import { toNumber, type Partner, type SaleLine, type SaleRecord, type Supplier } from '@/lib/api'
 
-const fixedRecoveryByPortionName = new Map([
-  ['g1', 15],
-  ['chico', 15],
-  ['chica', 15],
-  ['unidad', 15],
-  ['g2', 30],
-  ['grande', 30],
-])
-
 export type PartnerProfitStats = {
   partner: Partner
   suppliers: Supplier[]
@@ -78,14 +69,6 @@ export function saleUnits(sale: SaleRecord) {
   return sale.lines.reduce((sum, line) => sum + Number(line.portions_qty || 0), 0)
 }
 
-function normalizedPortionName(value: string) {
-  return value.trim().toLowerCase().replaceAll(' ', '').replaceAll('-', '')
-}
-
-function fixedRecoveryForLine(line: SaleLine) {
-  return fixedRecoveryByPortionName.get(normalizedPortionName(line.portion_name)) ?? 0
-}
-
 export function lineRecoveryAmount(line: SaleLine) {
   const quantity = Number(line.portions_qty || 0)
   const storedRecovery = toNumber(line.recovery_amount)
@@ -98,7 +81,7 @@ export function lineRecoveryAmount(line: SaleLine) {
     return snapshotRecovery * quantity
   }
 
-  return fixedRecoveryForLine(line) * quantity
+  return 0
 }
 
 export function saleRecoveryAmount(sale: SaleRecord) {
@@ -160,14 +143,7 @@ export function buildProfitSummary(partners: Partner[], suppliers: Supplier[], s
   const portionRowsByLabel = new Map<string, PortionProfitStats>()
 
   function portionLabel(line: SaleLine) {
-    const normalizedName = normalizedPortionName(line.portion_name)
-    if (['g1', 'chico', 'chica', 'unidad'].includes(normalizedName)) {
-      return 'G1'
-    }
-    if (['g2', 'grande'].includes(normalizedName)) {
-      return 'G2'
-    }
-    return line.portion_name || 'Sin tipo'
+    return line.product_name || line.product_sku || 'Sin producto'
   }
 
   function applyLine(line: SaleLine) {
@@ -239,11 +215,7 @@ export function buildProfitSummary(partners: Partner[], suppliers: Supplier[], s
   return {
     ...totals,
     partnerRows,
-    portionRows: Array.from(portionRowsByLabel.values()).sort((left, right) => {
-      const order = ['G1', 'G2']
-      return (order.indexOf(left.label) === -1 ? 99 : order.indexOf(left.label))
-        - (order.indexOf(right.label) === -1 ? 99 : order.indexOf(right.label))
-    }),
+    portionRows: Array.from(portionRowsByLabel.values()).sort((left, right) => left.label.localeCompare(right.label, 'es')),
     unassigned,
   }
 }

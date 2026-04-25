@@ -1,30 +1,15 @@
 import { toNumber, type PortionSize, type Product } from '@/lib/api'
-import { formatMoney } from '@/lib/format'
-
-const fixedNames = new Map([
-  ['g1', 15],
-  ['chico', 15],
-  ['chica', 15],
-  ['unidad', 15],
-  ['g2', 30],
-  ['grande', 30],
-])
 
 function normalizeName(value: string) {
   return value.trim().toLowerCase().replaceAll(' ', '').replaceAll('-', '')
 }
 
-export function recoveryPriceForPortion(portion: PortionSize | null | undefined) {
-  if (!portion) {
+export function productRecoveryPrice(product: Product | null | undefined) {
+  if (!product) {
     return 0
   }
 
-  const configuredPrice = toNumber(portion.recovery_price)
-  if (configuredPrice > 0) {
-    return configuredPrice
-  }
-
-  return fixedNames.get(normalizeName(portion.name)) ?? 0
+  return toNumber(product.recovery_price)
 }
 
 export function salePortions(product: Product | null | undefined) {
@@ -33,11 +18,19 @@ export function salePortions(product: Product | null | undefined) {
   }
 
   return product.portions
-    .filter((portion) => portion.active && recoveryPriceForPortion(portion) > 0)
-    .sort((left, right) => recoveryPriceForPortion(left) - recoveryPriceForPortion(right))
+    .filter((portion) => portion.active)
+    .sort((left, right) => {
+      const leftIsDefault = normalizeName(left.name) === 'unidad'
+      const rightIsDefault = normalizeName(right.name) === 'unidad'
+
+      if (leftIsDefault !== rightIsDefault) {
+        return leftIsDefault ? -1 : 1
+      }
+
+      return left.name.localeCompare(right.name, 'es')
+    })
 }
 
-export function salePortionLabel(portion: PortionSize) {
-  const recoveryPrice = recoveryPriceForPortion(portion)
-  return `${portion.name} - recupera ${formatMoney(recoveryPrice)}`
+export function salePortionForProduct(product: Product | null | undefined): PortionSize | null {
+  return salePortions(product)[0] ?? null
 }

@@ -102,6 +102,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "grams_per_piece",
             "active",
             "available_grams",
+            "recovery_price",
             "portions",
             "created_at",
             "updated_at",
@@ -121,12 +122,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         product = super().create(validated_data)
-        services.ensure_fixed_sale_portions(product)
+        services.ensure_default_sale_unit(product)
         return product
 
     def update(self, instance, validated_data):
         product = super().update(instance, validated_data)
-        services.ensure_fixed_sale_portions(product)
+        services.ensure_default_sale_unit(product)
         return product
 
 
@@ -250,6 +251,7 @@ class InventoryAllocationSerializer(serializers.ModelSerializer):
 
 class SaleLineSerializer(serializers.ModelSerializer):
     product_sku = serializers.CharField(source="product.sku", read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
     portion_name = serializers.CharField(source="portion.name", read_only=True)
     inventory_allocations = InventoryAllocationSerializer(many=True, read_only=True)
 
@@ -259,6 +261,7 @@ class SaleLineSerializer(serializers.ModelSerializer):
             "id",
             "product",
             "product_sku",
+            "product_name",
             "portion",
             "portion_name",
             "portions_qty",
@@ -282,8 +285,10 @@ class SaleLineSerializer(serializers.ModelSerializer):
         recovery_unit = services.money(instance.recovery_unit_price_snapshot)
 
         if services.money(instance.recovery_amount) <= 0:
+            if recovery_unit <= 0 and instance.product_id:
+                recovery_unit = services.money(instance.product.recovery_price)
             if recovery_unit <= 0:
-                recovery_unit = services.fixed_recovery_price_for_name(instance.portion.name)
+                recovery_unit = services.recovery_price_for_portion(instance.portion)
             data["recovery_unit_price_snapshot"] = f"{recovery_unit:.2f}"
             data["recovery_amount"] = f"{recovery_amount:.2f}"
 
@@ -375,7 +380,7 @@ class SaleSerializer(serializers.ModelSerializer):
 class SupplierSaleSerializer(serializers.Serializer):
     supplier = serializers.PrimaryKeyRelatedField(queryset=Supplier.objects.filter(active=True))
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(active=True))
-    portion = serializers.PrimaryKeyRelatedField(queryset=PortionSize.objects.filter(active=True))
+    portion = serializers.PrimaryKeyRelatedField(queryset=PortionSize.objects.filter(active=True), required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False)
     paid_amount = serializers.DecimalField(
@@ -389,8 +394,12 @@ class SupplierSaleSerializer(serializers.Serializer):
     notes = serializers.CharField(allow_blank=True, required=False)
 
     def validate(self, attrs):
-        if attrs["portion"].product_id != attrs["product"].id:
+        portion = attrs.get("portion") or services.primary_sale_portion_for_product(attrs["product"])
+        if not portion:
+            raise serializers.ValidationError({"product": "El producto necesita una unidad interna para vender."})
+        if portion.product_id != attrs["product"].id:
             raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
+        attrs["portion"] = portion
         return attrs
 
     def create(self, validated_data):
@@ -515,7 +524,7 @@ class CustomerPaymentSerializer(serializers.ModelSerializer):
 
 class DirectSaleSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(active=True))
-    portion = serializers.PrimaryKeyRelatedField(queryset=PortionSize.objects.filter(active=True))
+    portion = serializers.PrimaryKeyRelatedField(queryset=PortionSize.objects.filter(active=True), required=False, allow_null=True)
     portions_qty = serializers.IntegerField(min_value=1)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
     method = serializers.CharField(max_length=40)
@@ -523,8 +532,12 @@ class DirectSaleSerializer(serializers.Serializer):
     notes = serializers.CharField(allow_blank=True, required=False)
 
     def validate(self, attrs):
-        if attrs["portion"].product_id != attrs["product"].id:
+        portion = attrs.get("portion") or services.primary_sale_portion_for_product(attrs["product"])
+        if not portion:
+            raise serializers.ValidationError({"product": "El producto necesita una unidad interna para vender."})
+        if portion.product_id != attrs["product"].id:
             raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
+        attrs["portion"] = portion
         return attrs
 
     def create(self, validated_data):

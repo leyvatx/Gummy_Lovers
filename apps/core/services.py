@@ -26,10 +26,7 @@ from apps.core.models import (
 
 MONEY_QUANT = Decimal("0.01")
 GRAM_QUANT = Decimal("0.001")
-G1_RECOVERY_PRICE = Decimal("15.00")
-G2_RECOVERY_PRICE = Decimal("30.00")
-G1_PORTION_NAMES = {"g1", "chico", "chica", "unidad"}
-G2_PORTION_NAMES = {"g2", "grande"}
+DEFAULT_PORTION_NAME = "Unidad"
 
 
 def money(value):
@@ -54,20 +51,11 @@ def normalized_portion_name(value):
     return (value or "").strip().lower().replace(" ", "").replace("-", "")
 
 
-def fixed_recovery_price_for_name(name):
-    normalized_name = normalized_portion_name(name)
-    if normalized_name in G1_PORTION_NAMES:
-        return money(G1_RECOVERY_PRICE)
-    if normalized_name in G2_PORTION_NAMES:
-        return money(G2_RECOVERY_PRICE)
-    return money(0)
-
-
 def recovery_price_for_portion(portion):
     configured_price = money(getattr(portion, "recovery_price", Decimal("0.00")))
     if configured_price > 0:
         return configured_price
-    return fixed_recovery_price_for_name(portion.name)
+    return money(0)
 
 
 def recovery_amount_for_sale_line(sale_line):
@@ -76,33 +64,39 @@ def recovery_amount_for_sale_line(sale_line):
         return recovery_amount
 
     recovery_unit = money(getattr(sale_line, "recovery_unit_price_snapshot", Decimal("0.00")))
+    if recovery_unit <= 0 and sale_line.product_id:
+        recovery_unit = money(getattr(sale_line.product, "recovery_price", Decimal("0.00")))
     if recovery_unit <= 0 and sale_line.portion_id:
-        recovery_unit = fixed_recovery_price_for_name(sale_line.portion.name)
+        recovery_unit = recovery_price_for_portion(sale_line.portion)
 
     return money(Decimal(sale_line.portions_qty) * recovery_unit)
 
 
-def ensure_fixed_sale_portions(product):
+def ensure_default_sale_unit(product):
     PortionModel = product.portions.model
-    for name, recovery_price in (("G1", G1_RECOVERY_PRICE), ("G2", G2_RECOVERY_PRICE)):
-        portion, _ = PortionModel.objects.get_or_create(
-            product=product,
-            name=name,
-            defaults={
-                "pieces_per_portion": 1,
-                "recovery_price": recovery_price,
-                "active": True,
-            },
-        )
-        changed_fields = []
-        if portion.recovery_price != recovery_price:
-            portion.recovery_price = recovery_price
-            changed_fields.append("recovery_price")
-        if not portion.active:
-            portion.active = True
-            changed_fields.append("active")
-        if changed_fields:
-            portion.save(update_fields=[*changed_fields, "updated_at"])
+    portion, _ = PortionModel.objects.get_or_create(
+        product=product,
+        name=DEFAULT_PORTION_NAME,
+        defaults={
+            "pieces_per_portion": 1,
+            "recovery_price": Decimal("0.00"),
+            "active": True,
+        },
+    )
+
+    if not portion.active:
+        portion.active = True
+        portion.save(update_fields=["active", "updated_at"])
+
+    return portion
+
+
+def primary_sale_portion_for_product(product):
+    portions = list(PortionSize.objects.filter(product=product, active=True).order_by("name"))
+    for portion in portions:
+        if normalized_portion_name(portion.name) == normalized_portion_name(DEFAULT_PORTION_NAME):
+            return portion
+    return portions[0] if portions else ensure_default_sale_unit(product)
 
 
 def sale_paid_amount(sale):
@@ -230,6 +224,10 @@ def create_sale(
         if portion.product_id != product.id:
             raise ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
 
+        recovery_unit_price = money(product.recovery_price)
+        if recovery_unit_price <= 0:
+            raise ValidationError({"recovery_price": f"Configura el precio a recuperar de {product.name} antes de vender."})
+
         unit_price = _unit_price_for_line(
             customer=customer,
             product=product,
@@ -238,7 +236,6 @@ def create_sale(
         )
         total_grams = grams(Decimal(portions_qty) * Decimal(portion.pieces_per_portion) * product.grams_per_piece)
         line_total = money(Decimal(portions_qty) * unit_price)
-        recovery_unit_price = recovery_price_for_portion(portion)
         recovery_amount = money(Decimal(portions_qty) * recovery_unit_price)
 
         sale_line = SaleLine.objects.create(
@@ -384,7 +381,7 @@ def create_supplier_sale(
 
     delivered_at = delivered_at or timezone.now()
     customer = _wholesale_customer_for_supplier(supplier)
-    price = money(unit_price if unit_price is not None else recovery_price_for_portion(portion))
+    price = money(unit_price if unit_price is not None else product.recovery_price)
 
     sale = create_sale(
         customer=customer,
@@ -549,7 +546,7 @@ def _payment_allocations_from_request(customer, amount, requested_allocations):
 
             item_amount = money(item["amount"])
             if item_amount > sale_outstanding_amount(sale):
-                raise ValidationError({"sale_allocations": "La aplicacion supera el saldo pendiente de la venta."})
+                raise ValidationError({"sale_allocations": "La aplicación supera el saldo pendiente de la venta."})
 
             allocations.append((sale, item_amount))
         return allocations

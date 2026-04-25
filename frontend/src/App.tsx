@@ -398,7 +398,7 @@ function App() {
         tone: 'amber' as const,
       },
       {
-        title: 'Recuperado fijo',
+        title: 'Precio recuperado',
         value: formatMoney(profitSummary.recoveryTarget),
         helper: `${formatMoney(profitSummary.recoveryCollected)} cobrado como recuperación`,
         icon: ShoppingBasket,
@@ -549,7 +549,7 @@ function App() {
                         <strong className="tabular-nums">{formatMoney(snapshot.pending_expense_reimbursements)}</strong>
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">
-                        <span className="text-muted-foreground">Recuperado fijo</span>
+                        <span className="text-muted-foreground">Precio recuperado</span>
                         <strong className="tabular-nums">{formatMoney(profitSummary.recoveryTarget)}</strong>
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-2xl border bg-background/55 p-4">

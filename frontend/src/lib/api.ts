@@ -75,6 +75,7 @@ export type Product = {
   name: string
   wholesale_price: MoneyValue
   grams_per_piece: MoneyValue
+  recovery_price: MoneyValue
   active: boolean
   available_grams: MoneyValue
   portions: PortionSize[]
@@ -129,6 +130,7 @@ export type SaleLine = {
   id: string
   product: string
   product_sku: string
+  product_name: string
   portion: string
   portion_name: string
   portions_qty: number
@@ -371,6 +373,7 @@ export function createProduct(payload: {
   name: string
   wholesale_price: string
   grams_per_piece: string
+  recovery_price: string
 }) {
   return request<Product>('/api/products/', {
     method: 'POST',
@@ -400,6 +403,7 @@ export function updateProduct(id: string, payload: {
   sku: string
   name: string
   wholesale_price?: string
+  recovery_price?: string
 }) {
   return request<Product>(`/api/products/${id}/`, {
     method: 'PATCH',

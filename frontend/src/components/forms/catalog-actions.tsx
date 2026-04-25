@@ -161,6 +161,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
   const [open, setOpen] = useState(false)
   const [sku, setSku] = useState('')
   const [name, setName] = useState('')
+  const [recoveryPrice, setRecoveryPrice] = useState('')
   const [quantity, setQuantity] = useState('0')
   const [unitCost, setUnitCost] = useState('0')
   const [supplier, setSupplier] = useState('none')
@@ -178,6 +179,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
         name,
         wholesale_price: '0',
         grams_per_piece: '1',
+        recovery_price: recoveryPrice,
       })
 
       const initialQuantity = Number(quantity)
@@ -197,6 +199,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       setOpen(false)
       setSku('')
       setName('')
+      setRecoveryPrice('')
       setQuantity('0')
       setUnitCost('0')
       setSupplier('none')
@@ -216,7 +219,7 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
       <SheetContent className={sheetClassName}>
         <SheetHeader>
           <SheetTitle>Agregar producto</SheetTitle>
-          <SheetDescription>Registra la gomita y su existencia inicial. G1 recupera $15 y G2 recupera $30.</SheetDescription>
+          <SheetDescription>Registra la gomita, su precio a recuperar y su existencia inicial.</SheetDescription>
         </SheetHeader>
 
         <form className="grid gap-4 pb-6" onSubmit={handleSubmit}>
@@ -229,6 +232,19 @@ function ProductAction({ suppliers, onCreated }: ProductActionProps) {
               <Label htmlFor="product-name">Nombre</Label>
               <Input id="product-name" value={name} onChange={(event) => setName(event.target.value)} required />
             </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="product-recovery-price">Precio a recuperar</Label>
+            <Input
+              id="product-recovery-price"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={recoveryPrice}
+              onChange={(event) => setRecoveryPrice(event.target.value)}
+              required
+            />
           </div>
 
           <div className="grid gap-2">
