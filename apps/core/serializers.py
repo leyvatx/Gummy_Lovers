@@ -22,6 +22,11 @@ from apps.core.models import (
 )
 
 
+def current_partner_from_context(context):
+    request = context.get("request")
+    return services.partner_for_user(getattr(request, "user", None))
+
+
 class BaseModelSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ["id", "created_at", "updated_at"]
@@ -57,14 +62,30 @@ class SupplierSerializer(serializers.ModelSerializer):
         model = Supplier
         fields = ["id", "name", "partner", "partner_name", "phone", "notes", "active", "created_at", "updated_at"]
         read_only_fields = ["id", "partner_name", "created_at", "updated_at"]
+        validators = []
 
     def validate_name(self, value):
-        queryset = Supplier.objects.filter(name=value, active=True)
+        partner = current_partner_from_context(self.context) or getattr(self.instance, "partner", None)
+        queryset = Supplier.objects.filter(name=value, active=True, partner=partner)
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
             raise serializers.ValidationError("Ya existe un proveedor activo con este nombre.")
         return value
+
+    def create(self, validated_data):
+        partner = current_partner_from_context(self.context)
+        if not partner:
+            raise serializers.ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
+        validated_data["partner"] = partner
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        partner = current_partner_from_context(self.context)
+        if not partner:
+            raise serializers.ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
+        validated_data["partner"] = partner
+        return super().update(instance, validated_data)
 
 
 class PortionSizeSerializer(serializers.ModelSerializer):
@@ -87,15 +108,24 @@ class PortionSizeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "product_sku", "product_name", "created_at", "updated_at"]
 
+    def validate_product(self, value):
+        partner = current_partner_from_context(self.context)
+        if partner and value.partner_id != partner.id:
+            raise serializers.ValidationError("El producto no pertenece a tu sesión.")
+        return value
+
 
 class ProductSerializer(serializers.ModelSerializer):
     portions = PortionSizeSerializer(many=True, read_only=True)
     available_grams = serializers.SerializerMethodField()
+    partner_name = serializers.CharField(source="partner.name", read_only=True)
 
     class Meta:
         model = Product
         fields = [
             "id",
+            "partner",
+            "partner_name",
             "sku",
             "name",
             "wholesale_price",
@@ -107,13 +137,15 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "available_grams", "portions", "created_at", "updated_at"]
+        read_only_fields = ["id", "partner", "partner_name", "available_grams", "portions", "created_at", "updated_at"]
+        validators = []
 
     def get_available_grams(self, obj):
         return services.sum_grams(obj.lots.all(), "remaining_grams")
 
     def validate_sku(self, value):
-        queryset = Product.objects.filter(sku=value, active=True)
+        partner = current_partner_from_context(self.context) or getattr(self.instance, "partner", None)
+        queryset = Product.objects.filter(sku=value, active=True, partner=partner)
         if self.instance:
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
@@ -121,6 +153,10 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        partner = current_partner_from_context(self.context)
+        if not partner:
+            raise serializers.ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
+        validated_data["partner"] = partner
         product = super().create(validated_data)
         services.ensure_default_sale_unit(product)
         return product
@@ -156,6 +192,9 @@ class CustomerPriceSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         product = attrs.get("product", getattr(self.instance, "product", None))
         portion = attrs.get("portion", getattr(self.instance, "portion", None))
+        partner = current_partner_from_context(self.context)
+        if partner and product and product.partner_id != partner.id:
+            raise serializers.ValidationError({"product": "El producto no pertenece a tu sesión."})
         if product and portion and portion.product_id != product.id:
             raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto seleccionado."})
         return attrs
@@ -216,6 +255,15 @@ class InventoryLotSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "product_sku", "supplier_name", "created_at", "updated_at"]
 
     def validate(self, attrs):
+        partner = current_partner_from_context(self.context)
+        product = attrs.get("product", getattr(self.instance, "product", None))
+        supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
+
+        if partner and product and product.partner_id != partner.id:
+            raise serializers.ValidationError({"product": "El producto no pertenece a tu sesión."})
+        if partner and supplier and supplier.partner_id != partner.id:
+            raise serializers.ValidationError({"supplier": "El proveedor no pertenece a tu sesión."})
+
         data = {**getattr(self.instance, "__dict__", {}), **attrs}
         total_grams = data.get("total_grams")
         remaining_grams = data.get("remaining_grams")
@@ -225,7 +273,7 @@ class InventoryLotSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        partner = getattr(getattr(request, "user", None), "partner", None)
+        partner = services.partner_for_user(getattr(request, "user", None))
         if partner and not validated_data.get("paid_by_partner"):
             validated_data["paid_by_partner"] = partner
 
@@ -302,6 +350,9 @@ class SaleLineInputSerializer(serializers.Serializer):
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.00"), required=False)
 
     def validate(self, attrs):
+        partner = current_partner_from_context(self.context)
+        if partner and attrs["product"].partner_id != partner.id:
+            raise serializers.ValidationError({"product": "El producto no pertenece a tu sesión."})
         if attrs["portion"].product_id != attrs["product"].id:
             raise serializers.ValidationError({"portion": "La unidad debe pertenecer al producto vendido."})
         return attrs
@@ -362,10 +413,22 @@ class SaleSerializer(serializers.ModelSerializer):
     def get_outstanding_balance(self, obj):
         return services.sale_outstanding_amount(obj)
 
+    def validate(self, attrs):
+        partner = current_partner_from_context(self.context)
+        supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
+        if partner and supplier and supplier.partner_id != partner.id:
+            raise serializers.ValidationError({"supplier": "El proveedor no pertenece a tu sesión."})
+        if partner:
+            for item in attrs.get("items", []):
+                if item["product"].partner_id != partner.id:
+                    raise serializers.ValidationError({"items": "Solo puedes vender productos de tu sesión."})
+        return attrs
+
     def create(self, validated_data):
         items = validated_data.pop("items")
-        request = self.context.get("request")
-        partner = getattr(getattr(request, "user", None), "partner", None)
+        partner = current_partner_from_context(self.context)
+        if not partner:
+            raise serializers.ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
         supplier = validated_data.get("supplier")
         if supplier and supplier.partner_id:
             partner = supplier.partner
@@ -394,6 +457,11 @@ class SupplierSaleSerializer(serializers.Serializer):
     notes = serializers.CharField(allow_blank=True, required=False)
 
     def validate(self, attrs):
+        partner = current_partner_from_context(self.context)
+        if partner and attrs["supplier"].partner_id != partner.id:
+            raise serializers.ValidationError({"supplier": "El proveedor no pertenece a tu sesión."})
+        if partner and attrs["product"].partner_id != partner.id:
+            raise serializers.ValidationError({"product": "El producto no pertenece a tu sesión."})
         portion = attrs.get("portion") or services.primary_sale_portion_for_product(attrs["product"])
         if not portion:
             raise serializers.ValidationError({"product": "El producto necesita una unidad interna para vender."})
@@ -403,8 +471,7 @@ class SupplierSaleSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        request = self.context.get("request")
-        partner = getattr(getattr(request, "user", None), "partner", None)
+        partner = current_partner_from_context(self.context)
         sale, payment = services.create_supplier_sale(
             partner=partner,
             supplier=validated_data["supplier"],
@@ -447,7 +514,7 @@ class OperationalExpenseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        partner = getattr(getattr(request, "user", None), "partner", None)
+        partner = services.partner_for_user(getattr(request, "user", None))
         if not partner:
             raise serializers.ValidationError({"paid_by_partner": "Tu usuario no tiene una sesión de socio vinculada."})
         return OperationalExpense.objects.create(paid_by_partner=partner, **validated_data)
@@ -519,6 +586,15 @@ class CustomerPaymentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         apply_to_sales = validated_data.pop("apply_to_sales", [])
+        partner = current_partner_from_context(self.context)
+        if partner:
+            customer = validated_data["customer"]
+            has_customer_sale = Sale.objects.filter(customer=customer, sold_by_partner=partner).exists()
+            if not has_customer_sale:
+                raise serializers.ValidationError({"customer": "El cliente no tiene ventas de tu sesión."})
+            for item in apply_to_sales:
+                if item["sale"].sold_by_partner_id != partner.id:
+                    raise serializers.ValidationError({"apply_to_sales": "Solo puedes aplicar cobros a tus ventas."})
         return services.record_customer_payment(sale_allocations=apply_to_sales, **validated_data)
 
 
@@ -532,6 +608,9 @@ class DirectSaleSerializer(serializers.Serializer):
     notes = serializers.CharField(allow_blank=True, required=False)
 
     def validate(self, attrs):
+        partner = current_partner_from_context(self.context)
+        if partner and attrs["product"].partner_id != partner.id:
+            raise serializers.ValidationError({"product": "El producto no pertenece a tu sesión."})
         portion = attrs.get("portion") or services.primary_sale_portion_for_product(attrs["product"])
         if not portion:
             raise serializers.ValidationError({"product": "El producto necesita una unidad interna para vender."})
@@ -541,8 +620,7 @@ class DirectSaleSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        request = self.context.get("request")
-        partner = getattr(getattr(request, "user", None), "partner", None)
+        partner = current_partner_from_context(self.context)
         if not partner:
             raise serializers.ValidationError({"partner": "Tu usuario no tiene una sesión de socio vinculada."})
 

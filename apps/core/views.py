@@ -51,6 +51,14 @@ class ActiveFilterMixin:
         return queryset
 
 
+def current_partner(request):
+    return services.partner_for_user(getattr(request, "user", None))
+
+
+def global_read_scope(request):
+    return request.method == "GET" and request.query_params.get("scope") == "all"
+
+
 class PartnerViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
     queryset = Partner.objects.select_related("user").all()
     serializer_class = PartnerSerializer
@@ -64,20 +72,28 @@ class SupplierViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
     serializer_class = SupplierSerializer
 
     def get_queryset(self):
-        return self.filter_active(super().get_queryset())
+        queryset = self.filter_active(super().get_queryset())
+        if global_read_scope(self.request):
+            return queryset
+
+        partner = current_partner(self.request)
+        if not partner:
+            return queryset.none()
+        return queryset.filter(partner=partner)
 
     def destroy(self, request, *args, **kwargs):
-        supplier_id = kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        supplier = self.get_object()
         try:
-            services.hard_delete_supplier(supplier_id)
+            services.hard_delete_supplier(supplier)
         except Supplier.DoesNotExist:
             return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
+        supplier = self.get_object()
         try:
-            services.hard_delete_supplier(pk)
+            services.hard_delete_supplier(supplier)
         except Supplier.DoesNotExist:
             return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -88,20 +104,25 @@ class ProductViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        return self.filter_active(super().get_queryset())
+        queryset = self.filter_active(super().get_queryset())
+        partner = current_partner(self.request)
+        if not partner:
+            return queryset.none()
+        return queryset.filter(partner=partner)
 
     def destroy(self, request, *args, **kwargs):
-        product_id = kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        product = self.get_object()
         try:
-            services.hard_delete_product(product_id)
+            services.hard_delete_product(product)
         except Product.DoesNotExist:
             return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
+        product = self.get_object()
         try:
-            services.hard_delete_product(pk)
+            services.hard_delete_product(product)
         except Product.DoesNotExist:
             return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -113,6 +134,11 @@ class PortionSizeViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = self.filter_active(super().get_queryset())
+        partner = current_partner(self.request)
+        if not global_read_scope(self.request):
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(product__partner=partner)
         product_id = self.request.query_params.get("product")
         if product_id:
             queryset = queryset.filter(product_id=product_id)
@@ -125,6 +151,11 @@ class CustomerNodeViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = self.filter_active(super().get_queryset())
+        if not global_read_scope(self.request):
+            partner = current_partner(self.request)
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(sales__sold_by_partner=partner).distinct()
         kind = self.request.query_params.get("kind")
         if kind:
             queryset = queryset.filter(kind=kind)
@@ -153,6 +184,11 @@ class CustomerPriceViewSet(ActiveFilterMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = self.filter_active(super().get_queryset())
+        partner = current_partner(self.request)
+        if not global_read_scope(self.request):
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(product__partner=partner)
         customer_id = self.request.query_params.get("customer")
         product_id = self.request.query_params.get("product")
         if customer_id:
@@ -168,6 +204,11 @@ class InventoryLotViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        partner = current_partner(self.request)
+        if not global_read_scope(self.request):
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(product__partner=partner)
         product_id = self.request.query_params.get("product")
         in_stock = self.request.query_params.get("in_stock")
         if product_id:
@@ -187,6 +228,11 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        partner = current_partner(self.request)
+        if not global_read_scope(self.request):
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(sold_by_partner=partner)
         customer_id = self.request.query_params.get("customer")
         status_filter = self.request.query_params.get("status")
         if customer_id:
@@ -198,17 +244,18 @@ class SaleViewSet(viewsets.ModelViewSet):
         return queryset
 
     def destroy(self, request, *args, **kwargs):
-        sale_id = kwargs.get(self.lookup_url_kwarg or self.lookup_field)
+        sale = self.get_object()
         try:
-            services.hard_delete_sale(sale_id)
+            services.hard_delete_sale(sale)
         except Sale.DoesNotExist:
             return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
+        sale = self.get_object()
         try:
-            services.hard_delete_sale(pk)
+            services.hard_delete_sale(sale)
         except Sale.DoesNotExist:
             return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -216,8 +263,10 @@ class SaleViewSet(viewsets.ModelViewSet):
 
 class SupplierDeactivateAPIView(APIView):
     def post(self, request, pk):
+        partner = current_partner(request)
         try:
-            services.hard_delete_supplier(pk)
+            supplier = Supplier.objects.get(pk=pk, partner=partner)
+            services.hard_delete_supplier(supplier)
         except Supplier.DoesNotExist:
             return Response({"detail": "Proveedor no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -225,8 +274,10 @@ class SupplierDeactivateAPIView(APIView):
 
 class ProductDeactivateAPIView(APIView):
     def post(self, request, pk):
+        partner = current_partner(request)
         try:
-            services.hard_delete_product(pk)
+            product = Product.objects.get(pk=pk, partner=partner)
+            services.hard_delete_product(product)
         except Product.DoesNotExist:
             return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -234,8 +285,10 @@ class ProductDeactivateAPIView(APIView):
 
 class SaleCancelAPIView(APIView):
     def post(self, request, pk):
+        partner = current_partner(request)
         try:
-            services.hard_delete_sale(pk)
+            sale = Sale.objects.get(pk=pk, sold_by_partner=partner)
+            services.hard_delete_sale(sale)
         except Sale.DoesNotExist:
             return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -263,6 +316,11 @@ class OperationalExpenseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        if not global_read_scope(self.request):
+            partner = current_partner(self.request)
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(paid_by_partner=partner)
         partner_id = self.request.query_params.get("partner")
         include_voided = self.request.query_params.get("include_voided")
         if partner_id:
@@ -282,6 +340,11 @@ class CustomerPaymentViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin,
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        if not global_read_scope(self.request):
+            partner = current_partner(self.request)
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(sale_allocations__sale__sold_by_partner=partner).distinct()
         customer_id = self.request.query_params.get("customer")
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
@@ -294,6 +357,11 @@ class PartnerPayoutViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        if not global_read_scope(self.request):
+            partner = current_partner(self.request)
+            if not partner:
+                return queryset.none()
+            queryset = queryset.filter(partner=partner)
         partner_id = self.request.query_params.get("partner")
         reason = self.request.query_params.get("reason")
         if partner_id:

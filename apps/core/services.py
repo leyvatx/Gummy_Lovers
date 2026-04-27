@@ -29,6 +29,18 @@ GRAM_QUANT = Decimal("0.001")
 DEFAULT_PORTION_NAME = "Unidad"
 
 
+def partner_for_user(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+
+    try:
+        partner = user.partner
+    except Partner.DoesNotExist:
+        return None
+
+    return partner if partner.active else None
+
+
 def money(value):
     return Decimal(value or 0).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
 
@@ -266,9 +278,14 @@ def create_sale(
     return sale
 
 
+def _wholesale_customer_name_for_supplier(supplier):
+    partner_code = supplier.partner.code if supplier.partner_id else "Sin socio"
+    return f"Proveedor - Socio {partner_code} - {supplier.name}"
+
+
 def _wholesale_customer_for_supplier(supplier):
     customer, created = CustomerNode.objects.get_or_create(
-        name=f"Proveedor - {supplier.name}",
+        name=_wholesale_customer_name_for_supplier(supplier),
         defaults={
             "kind": CustomerNode.Kind.WHOLESALE,
             "contact_name": supplier.name,
@@ -505,14 +522,19 @@ def hard_delete_sale(sale_or_id):
 def hard_delete_supplier(supplier_or_id):
     supplier_id = getattr(supplier_or_id, "id", supplier_or_id)
     supplier = Supplier.objects.select_for_update().get(pk=supplier_id)
-    auto_customer = CustomerNode.objects.filter(name=f"Proveedor - {supplier.name}").first()
+    auto_customer_names = [
+        _wholesale_customer_name_for_supplier(supplier),
+        f"Proveedor - {supplier.name}",
+    ]
+    auto_customers = list(CustomerNode.objects.filter(name__in=auto_customer_names))
     sale_ids = list(Sale.objects.filter(supplier=supplier).values_list("id", flat=True))
 
     for sale_id in sale_ids:
         hard_delete_sale(sale_id)
 
     supplier.delete()
-    _delete_empty_auto_customer(auto_customer)
+    for auto_customer in auto_customers:
+        _delete_empty_auto_customer(auto_customer)
 
 
 @transaction.atomic

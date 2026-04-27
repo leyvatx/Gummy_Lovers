@@ -126,6 +126,8 @@ function App() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [sales, setSales] = useState<SaleRecord[]>([])
+  const [globalSuppliers, setGlobalSuppliers] = useState<Supplier[]>([])
+  const [globalSales, setGlobalSales] = useState<SaleRecord[]>([])
   const [salesQuery, setSalesQuery] = useState('')
   const [salesStatus, setSalesStatus] = useState<SaleStatusFilter>('all')
   const [salesChannel, setSalesChannel] = useState<SaleChannelFilter>('all')
@@ -141,6 +143,8 @@ function App() {
     setSuppliers([])
     setProducts([])
     setSales([])
+    setGlobalSuppliers([])
+    setGlobalSales([])
     setIsLoading(false)
     setError('')
   }, [])
@@ -232,16 +236,20 @@ function App() {
   }, [])
 
   const fetchWorkspaceData = useCallback(async () => {
-    const [financialData, partnerData, supplierData, productData, salesData] = await Promise.all([
+    const [financialData, partnerData, supplierData, productData, salesData, globalSupplierData, globalSalesData] = await Promise.all([
       getFinancialSnapshot(),
       getPartners(),
       getSuppliers(),
       getProducts(),
       getSales(),
+      getSuppliers({ scope: 'all' }),
+      getSales({ scope: 'all' }),
     ])
 
     return {
       financialData,
+      globalSalesData,
+      globalSupplierData,
       partnerData,
       productData,
       salesData,
@@ -267,13 +275,15 @@ function App() {
       }
 
       try {
-        const { financialData, partnerData, productData, salesData, supplierData } = await fetchWorkspaceData()
+        const { financialData, globalSalesData, globalSupplierData, partnerData, productData, salesData, supplierData } = await fetchWorkspaceData()
 
         setSnapshot(financialData)
         setPartners(partnerData)
         setSuppliers(supplierData)
         setProducts(productData)
         setSales(salesData)
+        setGlobalSuppliers(globalSupplierData)
+        setGlobalSales(globalSalesData)
         setLastUpdated(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
         setError('')
       } catch (refreshError) {
@@ -432,7 +442,7 @@ function App() {
           </>
         )
       case 'suppliers':
-        return <SupplierAction partners={partners} onCreated={refreshData} />
+        return <SupplierAction onCreated={refreshData} />
       case 'products':
         return <ProductAction suppliers={suppliers} onCreated={refreshData} />
       case 'sales':
@@ -571,20 +581,19 @@ function App() {
             ) : currentSection === 'profits' ? (
               <ProfitWorkspace
                 partners={partners}
-                sales={sales}
-                suppliers={suppliers}
+                sales={globalSales}
+                suppliers={globalSuppliers}
               />
             ) : currentSection === 'partners' ? (
               <PartnersWorkspace
                 partners={partners}
-                sales={sales}
-                suppliers={suppliers}
+                sales={globalSales}
+                suppliers={globalSuppliers}
                 onChanged={refreshData}
               />
             ) : (
               <CatalogWorkspace
                 section={currentSection}
-                partners={partners}
                 products={products}
                 suppliers={suppliers}
                 onChanged={refreshData}

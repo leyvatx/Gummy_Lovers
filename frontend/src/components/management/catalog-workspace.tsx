@@ -19,13 +19,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RowContextMenu, type RowContextMenuTarget, useRowContextMenu } from '@/components/ui/row-context-menu'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -40,7 +33,6 @@ import {
   updateProduct,
   updateSupplier,
   type ApiError,
-  type Partner,
   type Product,
   type Supplier,
 } from '@/lib/api'
@@ -50,7 +42,6 @@ import { cn } from '@/lib/utils'
 
 type CatalogWorkspaceProps = {
   section: Extract<AppSection, 'suppliers' | 'products'>
-  partners: Partner[]
   products: Product[]
   suppliers: Supplier[]
   onChanged: () => Promise<void>
@@ -175,13 +166,11 @@ function DesktopTable({ children }: { children: ReactNode }) {
 
 function SupplierContextActions({
   supplier,
-  partners,
   menuTarget,
   onCloseMenu,
   onChanged,
 }: {
   supplier: Supplier
-  partners: Partner[]
   menuTarget: RowContextMenuTarget
   onCloseMenu: () => void
   onChanged: () => Promise<void>
@@ -189,7 +178,6 @@ function SupplierContextActions({
   const [mode, setMode] = useState<RowMode>(null)
   const [name, setName] = useState(supplier.name)
   const [phone, setPhone] = useState(supplier.phone)
-  const [partner, setPartner] = useState(supplier.partner ?? 'none')
   const [notes, setNotes] = useState(supplier.notes)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
@@ -205,7 +193,6 @@ function SupplierContextActions({
     try {
       await updateSupplier(supplier.id, {
         name,
-        partner: partner === 'none' ? '' : partner,
         phone,
         notes,
       })
@@ -235,7 +222,6 @@ function SupplierContextActions({
   function openEdit() {
     setName(supplier.name)
     setPhone(supplier.phone)
-    setPartner(supplier.partner ?? 'none')
     setNotes(supplier.notes)
     setError('')
     setMode('edit')
@@ -264,7 +250,6 @@ function SupplierContextActions({
               </SheetHeader>
               <dl className="grid gap-3 text-sm">
                 <FieldRow label="Teléfono" value={supplier.phone || 'Sin teléfono'} />
-                <FieldRow label="Socio vinculado" value={supplier.partner_name || 'Ninguno'} />
                 <FieldRow label="Notas" value={supplier.notes || 'Sin notas'} />
               </dl>
             </>
@@ -284,22 +269,6 @@ function SupplierContextActions({
                 <div className="grid gap-2">
                   <Label htmlFor={`supplier-phone-${supplier.id}`}>Teléfono</Label>
                   <Input id={`supplier-phone-${supplier.id}`} value={phone} onChange={(event) => setPhone(event.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor={`supplier-partner-${supplier.id}`}>Socio vinculado</Label>
-                  <Select value={partner} onValueChange={setPartner}>
-                    <SelectTrigger id={`supplier-partner-${supplier.id}`}>
-                      <SelectValue placeholder="Sin socio vinculado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin socio vinculado</SelectItem>
-                      {partners.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor={`supplier-notes-${supplier.id}`}>Notas</Label>
@@ -325,7 +294,7 @@ function SupplierContextActions({
           </AlertDialogHeader>
           <div className="rounded-xl border bg-muted/45 p-3 text-sm">
             <p className="font-medium">{supplier.name}</p>
-            <p className="text-xs text-muted-foreground">{supplier.partner_name || 'Sin socio vinculado'}</p>
+            <p className="text-xs text-muted-foreground">{supplier.phone || 'Sin teléfono'}</p>
           </div>
           {deleteError ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{deleteError}</p> : null}
           <AlertDialogFooter>
@@ -511,17 +480,16 @@ function ProductContextActions({
 }
 
 function SuppliersSection({
-  partners,
   suppliers,
   onChanged,
-}: Pick<CatalogWorkspaceProps, 'partners' | 'suppliers' | 'onChanged'>) {
+}: Pick<CatalogWorkspaceProps, 'suppliers' | 'onChanged'>) {
   const [query, setQuery] = useState('')
   const supplierContextMenu = useRowContextMenu()
   const normalizedQuery = normalizeSearch(query)
   const filteredSuppliers = useMemo(
     () =>
       suppliers.filter((supplier) =>
-        matchesQuery(normalizedQuery, [supplier.name, supplier.phone, supplier.notes, supplier.partner_name]),
+        matchesQuery(normalizedQuery, [supplier.name, supplier.phone, supplier.notes]),
       ),
     [normalizedQuery, suppliers],
   )
@@ -555,12 +523,10 @@ function SuppliersSection({
                       </div>
                     </div>
                     <dl className="mt-4 grid gap-2 text-sm">
-                      <FieldRow label="Socio vinculado" value={supplier.partner_name || 'Ninguno'} />
                       <FieldRow label="Notas" value={supplier.notes || 'Sin notas'} />
                     </dl>
                     <SupplierContextActions
                       supplier={supplier}
-                      partners={partners}
                       menuTarget={supplierContextMenu.target}
                       onCloseMenu={supplierContextMenu.close}
                       onChanged={onChanged}
@@ -575,7 +541,6 @@ function SuppliersSection({
                     <tr>
                       <th className="px-4 py-3 font-medium sm:px-5">Nombre</th>
                       <th className="px-4 py-3 font-medium">Teléfono</th>
-                      <th className="px-4 py-3 font-medium">Socio vinculado</th>
                       <th className="px-4 py-3 font-medium">Notas</th>
                     </tr>
                   </thead>
@@ -584,12 +549,10 @@ function SuppliersSection({
                       <tr key={supplier.id} className="border-t transition-colors hover:bg-muted/40" {...supplierContextMenu.getTargetProps(supplier.id)}>
                         <td className="px-4 py-4 font-medium sm:px-5">{supplier.name}</td>
                         <td className="px-4 py-4 text-muted-foreground">{supplier.phone || 'Sin teléfono'}</td>
-                        <td className="px-4 py-4 text-muted-foreground">{supplier.partner_name || 'Ninguno'}</td>
                         <td className="px-4 py-4 text-muted-foreground">
                           {supplier.notes || 'Sin notas'}
                           <SupplierContextActions
                             supplier={supplier}
-                            partners={partners}
                             menuTarget={supplierContextMenu.target}
                             onCloseMenu={supplierContextMenu.close}
                             onChanged={onChanged}
@@ -722,7 +685,7 @@ function ProductsSection({
 function CatalogWorkspace(props: CatalogWorkspaceProps) {
   switch (props.section) {
     case 'suppliers':
-      return <SuppliersSection partners={props.partners} suppliers={props.suppliers} onChanged={props.onChanged} />
+      return <SuppliersSection suppliers={props.suppliers} onChanged={props.onChanged} />
     case 'products':
       return <ProductsSection products={props.products} onChanged={props.onChanged} />
   }

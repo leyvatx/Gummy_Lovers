@@ -71,6 +71,8 @@ export type PortionSize = {
 
 export type Product = {
   id: string
+  partner: string | null
+  partner_name: string
   sku: string
   name: string
   wholesale_price: MoneyValue
@@ -171,6 +173,10 @@ export type ApiError = {
 type AuthPayload = {
   token: string
   user: AuthUser
+}
+
+type ListOptions = {
+  scope?: 'mine' | 'all'
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -317,8 +323,9 @@ export function getFinancialSnapshot() {
   return request<FinancialSnapshot>('/api/dashboard/financial/')
 }
 
-export async function getSuppliers() {
-  const payload = await request<Supplier[] | { results?: Supplier[] }>('/api/suppliers/?active=true')
+export async function getSuppliers(options: ListOptions = {}) {
+  const scope = options.scope === 'all' ? '&scope=all' : ''
+  const payload = await request<Supplier[] | { results?: Supplier[] }>(`/api/suppliers/?active=true${scope}`)
   return normalizeList(payload)
 }
 
@@ -351,20 +358,20 @@ export async function getPartners() {
   return normalizeList(payload)
 }
 
-export async function getSales() {
-  const payload = await request<SaleRecord[] | { results?: SaleRecord[] }>('/api/sales/')
+export async function getSales(options: ListOptions = {}) {
+  const scope = options.scope === 'all' ? '?scope=all' : ''
+  const payload = await request<SaleRecord[] | { results?: SaleRecord[] }>(`/api/sales/${scope}`)
   return normalizeList(payload)
 }
 
 export function createSupplier(payload: {
   name: string
-  partner?: string
   phone: string
   notes: string
 }) {
   return request<Supplier>('/api/suppliers/', {
     method: 'POST',
-    body: JSON.stringify({ ...payload, partner: payload.partner || null, active: true }),
+    body: JSON.stringify({ ...payload, active: true }),
   })
 }
 
@@ -383,13 +390,12 @@ export function createProduct(payload: {
 
 export function updateSupplier(id: string, payload: {
   name: string
-  partner?: string
   phone: string
   notes: string
 }) {
   return request<Supplier>(`/api/suppliers/${id}/`, {
     method: 'PATCH',
-    body: JSON.stringify({ ...payload, partner: payload.partner || null }),
+    body: JSON.stringify(payload),
   })
 }
 

@@ -26,7 +26,6 @@ import {
   createProduct,
   createSupplier,
   type ApiError,
-  type Partner,
   type Supplier,
 } from '@/lib/api'
 import { todayInputValue } from '@/lib/format'
@@ -35,9 +34,7 @@ type SharedActionProps = {
   onCreated: () => Promise<void>
 }
 
-type SupplierActionProps = SharedActionProps & {
-  partners: Partner[]
-}
+type SupplierActionProps = SharedActionProps
 
 type ProductActionProps = SharedActionProps & {
   suppliers: Supplier[]
@@ -68,10 +65,9 @@ const CreateTrigger = React.forwardRef<HTMLButtonElement, React.ComponentPropsWi
 )
 CreateTrigger.displayName = 'CreateTrigger'
 
-function SupplierAction({ partners, onCreated }: SupplierActionProps) {
+function SupplierAction({ onCreated }: SupplierActionProps) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [partner, setPartner] = useState('none')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -85,13 +81,11 @@ function SupplierAction({ partners, onCreated }: SupplierActionProps) {
     try {
       await createSupplier({
         name,
-        partner: partner === 'none' ? '' : partner,
         phone,
         notes,
       })
       setOpen(false)
       setName('')
-      setPartner('none')
       setPhone('')
       setNotes('')
       await onCreated()
@@ -122,23 +116,6 @@ function SupplierAction({ partners, onCreated }: SupplierActionProps) {
           <div className="grid gap-2">
             <Label htmlFor="supplier-phone">Teléfono</Label>
             <Input id="supplier-phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="supplier-partner">Socio vinculado</Label>
-            <Select value={partner} onValueChange={setPartner}>
-              <SelectTrigger id="supplier-partner">
-                <SelectValue placeholder="Sin socio vinculado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin socio vinculado</SelectItem>
-                {partners.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="grid gap-2">

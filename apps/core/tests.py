@@ -27,6 +27,7 @@ class CoreServiceTests(TestCase):
         self.partner_b = Partner.objects.create(code="B", name="Beto")
         self.customer = CustomerNode.objects.create(name="Cliente Centro")
         self.product = Product.objects.create(
+            partner=self.partner_a,
             sku="GOM-001",
             name="Gomita enchilada",
             grams_per_piece=Decimal("2.5000"),
@@ -262,10 +263,11 @@ class CoreAPITests(TestCase):
             last_name="Leyva",
         )
         self.client.force_authenticate(self.user)
-        self.partner_a = Partner.objects.create(code="A", name="Ana")
+        self.partner_a = Partner.objects.create(code="A", name="Ana", user=self.user)
         self.partner_b = Partner.objects.create(code="B", name="Beto")
         self.customer = CustomerNode.objects.create(name="Cliente Centro")
         self.product = Product.objects.create(
+            partner=self.partner_a,
             sku="GOM-001",
             name="Gomita enchilada",
             grams_per_piece=Decimal("2.5000"),
@@ -338,11 +340,10 @@ class CoreAPITests(TestCase):
         )
 
         self.assertEqual(patch_response.status_code, 200)
-        self.assertEqual(str(patch_response.data["partner"]), str(self.partner_b.id))
-        self.assertEqual(patch_response.data["partner_name"], self.partner_b.name)
+        self.assertEqual(str(patch_response.data["partner"]), str(self.partner_a.id))
+        self.assertEqual(patch_response.data["partner_name"], self.partner_a.name)
 
     def test_sales_endpoint_uses_authenticated_partner_as_seller(self):
-        self.partner_a.user = self.user
         self.partner_a.name = "Efrain Leyva"
         self.partner_a.save()
 
@@ -395,6 +396,62 @@ class CoreAPITests(TestCase):
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.data, [])
 
+    def test_regular_lists_are_scoped_to_authenticated_partner_and_global_scope_is_available(self):
+        supplier_a = Supplier.objects.create(name="Proveedor A", partner=self.partner_a)
+        supplier_b = Supplier.objects.create(name="Proveedor B", partner=self.partner_b)
+        product_b = Product.objects.create(
+            partner=self.partner_b,
+            sku="GOM-B",
+            name="Gomita privada B",
+            grams_per_piece=Decimal("1.0000"),
+            recovery_price=Decimal("12.00"),
+        )
+        portion_b = PortionSize.objects.create(product=product_b, name=services.DEFAULT_PORTION_NAME, pieces_per_portion=1)
+        InventoryLot.objects.create(
+            product=product_b,
+            lot_code="L-B",
+            boxes_qty=1,
+            bags_per_box=1,
+            kg_per_bag=Decimal("1.000"),
+            box_cost=Decimal("100.00"),
+            total_grams=Decimal("1000.000"),
+            remaining_grams=Decimal("1000.000"),
+            total_cost=Decimal("100.00"),
+            paid_by_partner=self.partner_b,
+            purchased_at=timezone.localdate(),
+        )
+        sale_a = services.create_sale(
+            customer=self.customer,
+            lines=[{"product": self.product, "portion": self.small, "portions_qty": 1}],
+            sold_by_partner=self.partner_a,
+        )
+        sale_b = services.create_sale(
+            customer=self.customer,
+            lines=[{"product": product_b, "portion": portion_b, "portions_qty": 1, "unit_price": Decimal("20.00")}],
+            sold_by_partner=self.partner_b,
+        )
+
+        products_response = self.client.get("/api/products/?active=true")
+        suppliers_response = self.client.get("/api/suppliers/?active=true")
+        sales_response = self.client.get("/api/sales/")
+        global_suppliers_response = self.client.get("/api/suppliers/?active=true&scope=all")
+        global_sales_response = self.client.get("/api/sales/?scope=all")
+        hidden_delete_response = self.client.delete(f"/api/products/{product_b.id}/")
+
+        self.assertEqual(products_response.status_code, 200)
+        self.assertEqual(suppliers_response.status_code, 200)
+        self.assertEqual(sales_response.status_code, 200)
+        self.assertEqual(global_suppliers_response.status_code, 200)
+        self.assertEqual(global_sales_response.status_code, 200)
+        self.assertEqual(hidden_delete_response.status_code, 404)
+
+        self.assertEqual({item["sku"] for item in products_response.data}, {self.product.sku})
+        self.assertEqual({item["name"] for item in suppliers_response.data}, {supplier_a.name})
+        self.assertEqual({item["id"] for item in sales_response.data}, {str(sale_a.id)})
+        self.assertEqual({item["name"] for item in global_suppliers_response.data}, {supplier_a.name, supplier_b.name})
+        self.assertEqual({item["id"] for item in global_sales_response.data}, {str(sale_a.id), str(sale_b.id)})
+        self.assertTrue(Product.objects.filter(id=product_b.id).exists())
+
     def test_sales_cancel_action_hard_deletes_sale(self):
         sale = services.create_sale(
             customer=self.customer,
@@ -408,8 +465,9 @@ class CoreAPITests(TestCase):
         self.assertFalse(Sale.objects.filter(id=sale.id).exists())
 
     def test_supplier_and_product_delete_actions_remove_records_and_free_names(self):
-        supplier = Supplier.objects.create(name="Proveedor Sur")
+        supplier = Supplier.objects.create(name="Proveedor Sur", partner=self.partner_a)
         product = Product.objects.create(
+            partner=self.partner_a,
             sku="GOM-002",
             name="Gomita mango",
             grams_per_piece=Decimal("1.0000"),
@@ -425,8 +483,9 @@ class CoreAPITests(TestCase):
         self.assertFalse(Supplier.objects.filter(id=supplier.id).exists())
         self.assertFalse(Product.objects.filter(id=product.id).exists())
 
-        supplier_recreated = Supplier.objects.create(name="Proveedor Sur")
+        supplier_recreated = Supplier.objects.create(name="Proveedor Sur", partner=self.partner_a)
         product_recreated = Product.objects.create(
+            partner=self.partner_a,
             sku="GOM-002",
             name="Gomita mango nueva",
             grams_per_piece=Decimal("1.0000"),
@@ -437,8 +496,9 @@ class CoreAPITests(TestCase):
         self.assertEqual(product_recreated.sku, "GOM-002")
 
     def test_inactive_supplier_and_product_do_not_block_reuse(self):
-        Supplier.objects.create(name="Proveedor Fantasma", active=False)
+        Supplier.objects.create(name="Proveedor Fantasma", partner=self.partner_a, active=False)
         Product.objects.create(
+            partner=self.partner_a,
             sku="GOM-999",
             name="Gomita eliminada",
             grams_per_piece=Decimal("1.0000"),
@@ -500,7 +560,6 @@ class CoreAPITests(TestCase):
         self.assertEqual(product.recovery_price, Decimal("22.50"))
 
     def test_expense_endpoint_uses_authenticated_partner(self):
-        self.partner_a.user = self.user
         self.partner_a.name = "Efrain Leyva"
         self.partner_a.save()
 
@@ -519,7 +578,6 @@ class CoreAPITests(TestCase):
         self.assertEqual(str(response.data["paid_by_partner"]), str(self.partner_a.id))
 
     def test_inventory_lot_endpoint_uses_authenticated_partner_by_default(self):
-        self.partner_a.user = self.user
         self.partner_a.name = "Efrain Leyva"
         self.partner_a.save()
 
@@ -544,7 +602,6 @@ class CoreAPITests(TestCase):
         self.assertEqual(response.data["total_cost"], "1300.00")
 
     def test_direct_sale_endpoint_creates_paid_sale_for_authenticated_partner(self):
-        self.partner_a.user = self.user
         self.partner_a.name = "Efrain Leyva"
         self.partner_a.save()
 

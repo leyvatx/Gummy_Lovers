@@ -85,14 +85,21 @@ class Supplier(BaseModel):
         indexes = [models.Index(fields=["active", "name"])]
         constraints = [
             models.UniqueConstraint(
-                fields=["name"],
+                fields=["partner", "name"],
                 condition=Q(active=True),
-                name="uniq_active_supplier_name",
+                name="uniq_active_partner_supplier_name",
             ),
         ]
 
 
 class Product(BaseModel):
+    partner = models.ForeignKey(
+        Partner,
+        null=True,
+        blank=True,
+        related_name="products",
+        on_delete=models.PROTECT,
+    )
     sku = models.CharField(max_length=40)
     name = models.CharField(max_length=160)
     wholesale_price = models.DecimalField(
@@ -122,9 +129,9 @@ class Product(BaseModel):
         indexes = [models.Index(fields=["sku", "active"])]
         constraints = [
             models.UniqueConstraint(
-                fields=["sku"],
+                fields=["partner", "sku"],
                 condition=Q(active=True),
-                name="uniq_active_product_sku",
+                name="uniq_active_partner_product_sku",
             ),
             models.CheckConstraint(condition=Q(wholesale_price__gte=0), name="product_wholesale_price_gte_0"),
             models.CheckConstraint(condition=Q(recovery_price__gte=0), name="product_recovery_price_gte_0"),
